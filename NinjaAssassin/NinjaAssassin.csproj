@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <UseWPF>false</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Remove the explicit Compile items -->
+    <!-- <Compile Include="MainForm.cs" /> -->
+    <!-- <Compile Include="SelectCharacterForm.cs" /> -->
+    <!-- <Compile Include="GameForm.cs" /> -->
+    <!-- <Compile Include="DifficultyForm.cs" /> -->
+    <!-- <Compile Include="Program.cs" /> -->
+  </ItemGroup>
+
+</Project>

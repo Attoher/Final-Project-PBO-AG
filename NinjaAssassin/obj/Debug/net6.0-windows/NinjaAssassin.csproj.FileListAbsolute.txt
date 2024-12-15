@@ -1,0 +1,14 @@
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-windows\NinjaAssassin.GeneratedMSBuildEditorConfig.editorconfig
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-windows\NinjaAssassin.AssemblyInfoInputs.cache
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-windows\NinjaAssassin.AssemblyInfo.cs
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-windows\NinjaAssassin.csproj.CoreCompileInputs.cache
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\NinjaAssassin.exe
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\NinjaAssassin.deps.json
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\NinjaAssassin.runtimeconfig.json
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\NinjaAssassin.dll
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\NinjaAssassin.pdb
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-windows\NinjaAssassin.dll
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-windows\refint\NinjaAssassin.dll
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-windows\NinjaAssassin.pdb
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-windows\NinjaAssassin.genruntimeconfig.cache
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-windows\ref\NinjaAssassin.dll

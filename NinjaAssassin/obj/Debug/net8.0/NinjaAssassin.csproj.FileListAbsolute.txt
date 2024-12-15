@@ -1,0 +1,4 @@
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net8.0\NinjaAssassin.GeneratedMSBuildEditorConfig.editorconfig
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net8.0\NinjaAssassin.AssemblyInfoInputs.cache
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net8.0\NinjaAssassin.AssemblyInfo.cs
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net8.0\NinjaAssassin.csproj.CoreCompileInputs.cache
