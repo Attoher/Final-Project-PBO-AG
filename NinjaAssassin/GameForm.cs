@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Drawing.Drawing2D;
+using System.Collections.Generic;
 
 namespace FormNavigation
 {
@@ -25,14 +26,24 @@ namespace FormNavigation
         private bool isFacingLeft = false;
         private bool isMoving = false;
         private Point lastMousePosition;
-        private bool mousePositionChanged = false;
         private Point mouseWorldPos; // Add this field
         private const string WEAPONS_PATH = "Resources/Weapons";
         private Image gunSprite;
-        private float gunRotation;
         private const int GUN_OFFSET_X = 30; // Adjust these values to position the gun
         private const int GUN_OFFSET_Y = 20;
         private Point currentMousePosition;  // Add this field
+        private List<Bullet> bullets = new List<Bullet>();
+        private const float BULLET_SPEED = 15f;
+        private const int BULLET_SIZE = 5;
+
+        private class Bullet
+        {
+            public float X { get; set; }
+            public float Y { get; set; }
+            public float VelocityX { get; set; }
+            public float VelocityY { get; set; }
+            public bool IsActive { get; set; } = true;
+        }
 
         public GameForm()
         {
@@ -41,6 +52,8 @@ namespace FormNavigation
             InitializeGame();
             this.MouseMove += GameForm_MouseMove;
             currentMousePosition = Cursor.Position;  // Initialize mouse position
+            this.MouseDown += GameForm_MouseDown;
+            this.MouseUp += GameForm_MouseUp;
         }
 
         private void InitializeForm()
@@ -219,6 +232,21 @@ namespace FormNavigation
             playerPosition.X = Math.Max(0, Math.Min(playerPosition.X, WORLD_WIDTH - width));
             playerPosition.Y = Math.Max(0, Math.Min(playerPosition.Y, WORLD_HEIGHT - height));
 
+            // Update bullets
+            for (int i = bullets.Count - 1; i >= 0; i--)
+            {
+                var bullet = bullets[i];
+                bullet.X += bullet.VelocityX;
+                bullet.Y += bullet.VelocityY;
+
+                // Remove bullets that are out of bounds
+                if (bullet.X < 0 || bullet.X > WORLD_WIDTH || 
+                    bullet.Y < 0 || bullet.Y > WORLD_HEIGHT)
+                {
+                    bullets.RemoveAt(i);
+                }
+            }
+
             UpdateCameraPosition();
             this.Invalidate(); // Always redraw when moving
         }
@@ -342,6 +370,19 @@ namespace FormNavigation
                         }
                     }
                 }
+
+                // Draw bullets after everything else
+                using (SolidBrush bulletBrush = new SolidBrush(Color.Yellow))
+                {
+                    foreach (var bullet in bullets)
+                    {
+                        e.Graphics.FillEllipse(bulletBrush, 
+                            bullet.X - BULLET_SIZE/2, 
+                            bullet.Y - BULLET_SIZE/2,
+                            BULLET_SIZE, 
+                            BULLET_SIZE);
+                    }
+                }
             }
         }
 
@@ -377,6 +418,51 @@ namespace FormNavigation
                 currentMousePosition.X + cameraOffset.X,
                 currentMousePosition.Y + cameraOffset.Y
             );
+        }
+
+        private void GameForm_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                var (width, height) = GetCharacterDimensions();
+                int scale = GameState.SelectedCharacter switch
+                {
+                    "Samurai" => 2,
+                    "Puppeteer" or "Shaman" => 2,
+                    _ => 3
+                };
+
+                // Calculate gun position
+                int playerCenterX = playerPosition.X + (width * scale) / 2;
+                int playerCenterY = playerPosition.Y + (height * scale) / 2;
+                
+                // Calculate angle to mouse
+                float angle = (float)Math.Atan2(
+                    (currentMousePosition.Y + cameraOffset.Y) - playerCenterY,
+                    (currentMousePosition.X + cameraOffset.X) - playerCenterX
+                );
+
+                // Calculate bullet velocity
+                float velocityX = (float)Math.Cos(angle) * BULLET_SPEED;
+                float velocityY = (float)Math.Sin(angle) * BULLET_SPEED;
+
+                // Create bullet at gun tip position
+                int gunOffsetX = 25 + 70; // gun offset + gun width
+                float bulletStartX = playerCenterX + gunOffsetX * (float)Math.Cos(angle);
+                float bulletStartY = playerCenterY + gunOffsetX * (float)Math.Sin(angle);
+
+                bullets.Add(new Bullet
+                {
+                    X = bulletStartX,
+                    Y = bulletStartY,
+                    VelocityX = velocityX,
+                    VelocityY = velocityY
+                });
+            }
+        }
+
+        private void GameForm_MouseUp(object sender, MouseEventArgs e)
+        {
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
