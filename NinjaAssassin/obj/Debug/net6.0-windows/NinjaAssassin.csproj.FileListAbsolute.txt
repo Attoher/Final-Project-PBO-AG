@@ -12,3 +12,4 @@ D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-win
 D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-windows\NinjaAssassin.pdb
 D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-windows\NinjaAssassin.genruntimeconfig.cache
 D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-windows\ref\NinjaAssassin.dll
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\obj\Debug\net6.0-windows\NinjaAssassin.sourcelink.json
