@@ -21,6 +21,10 @@ namespace FormNavigation
         private SpriteAnimation scarecrowAnimation;
         private SpriteAnimation shamanAnimation;
         private Panel characterPanel; // Add this field at the top with other fields
+        private Image arrowImage;
+        private const string ARROW_PATH = "Resources/Arrow.png";
+        private Panel arrowPanel;
+        private Point centerPoint;
 
         public SelectCharacterForm()
         {
@@ -43,6 +47,15 @@ namespace FormNavigation
             };
             this.Controls.Add(label);
             label.Location = new Point((this.ClientSize.Width - label.Width) / 2, 20);
+
+            try
+            {
+                arrowImage = Image.FromFile(ARROW_PATH);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading arrow image: {ex.Message}");
+            }
         }
 
         private void LoadCharacterPreviews()
@@ -82,22 +95,56 @@ namespace FormNavigation
                 ninjaPanel, puppeteerPanel, samuraiPanel, scarecrowPanel, shamanPanel 
             });
 
+            // Create a transparent panel for the arrow in the center
+            arrowPanel = new Panel
+            {
+                Size = new Size(150, 150),
+                BackColor = Color.Transparent
+            };
+            
+            // Calculate center position
+            centerPoint = new Point(
+                characterPanel.Width / 2,
+                characterPanel.Height / 2
+            );
+            
+            // Position the arrow panel in the center
+            arrowPanel.Location = new Point(
+                centerPoint.X - arrowPanel.Width / 2 + characterPanel.Left,
+                centerPoint.Y - arrowPanel.Height / 2 + characterPanel.Top
+            );
+
+            this.Controls.Add(arrowPanel);
+            arrowPanel.BringToFront();
+            
+            // Add mouse move handler and paint handler
+            this.MouseMove += SelectCharacterForm_MouseMove;
+            arrowPanel.Paint += ArrowPanel_Paint;
+
+            // Add arrow panel to refresh timer
+            Timer refreshTimer = new Timer
+            {
+                Interval = 16 // 60fps
+            };
+            refreshTimer.Tick += (s, e) => arrowPanel.Invalidate();
+            refreshTimer.Start();
+
             // Initialize animations
             try
             {
                 InitializeAnimations();
 
-                Timer refreshTimer = new Timer
+                Timer characterRefreshTimer = new Timer
                 {
                     Interval = 50
                 };
-                refreshTimer.Tick += (s, e) => {
+                characterRefreshTimer.Tick += (s, e) => {
                     foreach (Control control in characterPanel.Controls)
                     {
                         control.Invalidate();
                     }
                 };
-                refreshTimer.Start();
+                characterRefreshTimer.Start();
             }
             catch (Exception ex)
             {
@@ -121,6 +168,7 @@ namespace FormNavigation
                 BorderStyle = BorderStyle.FixedSingle,
                 Cursor = Cursors.Hand
             };
+            // Removed padding since labels are now outside
         }
 
         private void InitializeAnimations()
@@ -176,13 +224,41 @@ namespace FormNavigation
             {
                 Text = text,
                 AutoSize = true,
-                TextAlign = ContentAlignment.MiddleCenter
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent,  // Make background transparent
+                Font = new Font("Arial", 12, FontStyle.Bold),  // Slightly larger font
+                ForeColor = Color.Black  // Black text color
             };
+
+            // Calculate position to be below the panel
+            int margin = 10;
             label.Location = new Point(
-                panel.Left + (panel.Width - label.Width) / 2,
-                panel.Bottom + 5
+                panel.Left + (panel.Width - label.PreferredWidth) / 2,
+                panel.Bottom + margin
             );
-            panel.Parent.Controls.Add(label);
+
+            // Create a shadow effect for better visibility
+            Label shadowLabel = new Label
+            {
+                Text = text,
+                AutoSize = true,
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent,
+                Font = new Font("Arial", 12, FontStyle.Bold),
+                ForeColor = Color.Black,
+                Location = new Point(
+                    label.Location.X + 1,
+                    label.Location.Y + 1
+                )
+            };
+
+            // Add labels to character panel
+            characterPanel.Controls.Add(shadowLabel);
+            characterPanel.Controls.Add(label);
+            
+            // Bring labels to front
+            shadowLabel.BringToFront();
+            label.BringToFront();
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -193,6 +269,7 @@ namespace FormNavigation
             samuraiAnimation?.Dispose();
             scarecrowAnimation?.Dispose();
             shamanAnimation?.Dispose();
+            arrowImage?.Dispose();
         }
 
         private void SelectCharacter(string character)
@@ -238,6 +315,40 @@ namespace FormNavigation
         private void BackButton_Click(object sender, EventArgs e)
         {
             this.Close();
+        }
+
+        private void SelectCharacterForm_MouseMove(object sender, MouseEventArgs e)
+        {
+            arrowPanel.Invalidate();
+        }
+
+        private void ArrowPanel_Paint(object sender, PaintEventArgs e)
+        {
+            if (arrowImage != null)
+            {
+                Point mousePos = this.PointToClient(Cursor.Position);
+                float angle = (float)Math.Atan2(
+                    mousePos.Y - (centerPoint.Y + characterPanel.Top),
+                    mousePos.X - (centerPoint.X + characterPanel.Left)
+                );
+
+                // Save graphics state
+                var state = e.Graphics.Save();
+
+                // Set up transformation
+                e.Graphics.TranslateTransform(arrowPanel.Width / 2, arrowPanel.Height / 2);
+                e.Graphics.RotateTransform((float)(angle * 180 / Math.PI));
+
+                // Draw the arrow
+                e.Graphics.DrawImage(arrowImage, 
+                    -arrowPanel.Width / 2, 
+                    -arrowPanel.Height / 2, 
+                    arrowPanel.Width, 
+                    arrowPanel.Height);
+
+                // Restore graphics state
+                e.Graphics.Restore(state);
+            }
         }
     }
 }
