@@ -27,6 +27,12 @@ namespace FormNavigation
         private Point lastMousePosition;
         private bool mousePositionChanged = false;
         private Point mouseWorldPos; // Add this field
+        private const string WEAPONS_PATH = "Resources/Weapons";
+        private Image gunSprite;
+        private float gunRotation;
+        private const int GUN_OFFSET_X = 30; // Adjust these values to position the gun
+        private const int GUN_OFFSET_Y = 20;
+        private Point currentMousePosition;  // Add this field
 
         public GameForm()
         {
@@ -34,6 +40,7 @@ namespace FormNavigation
             InitializeControls();
             InitializeGame();
             this.MouseMove += GameForm_MouseMove;
+            currentMousePosition = Cursor.Position;  // Initialize mouse position
         }
 
         private void InitializeForm()
@@ -112,6 +119,16 @@ namespace FormNavigation
             // Load grass tiles
             LoadGrassTiles();
             GenerateTileMap();
+
+            // Load weapon sprite
+            try
+            {
+                gunSprite = Image.FromFile(System.IO.Path.Combine(WEAPONS_PATH, "Gun1.png"));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading weapon sprite: {ex.Message}");
+            }
 
             gameTimer.Start();
             this.Paint += GameForm_Paint;
@@ -250,7 +267,7 @@ namespace FormNavigation
                     e.Graphics.DrawRectangle(pen, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
                 }
 
-                // Draw player at world position
+                // Draw player and weapon
                 if (playerAnimation != null)
                 {
                     var (width, height) = GetCharacterDimensions();
@@ -261,40 +278,68 @@ namespace FormNavigation
                         _ => 3
                     };
 
-                    // Save current state before transformations
-                    var state = e.Graphics.Save();
+                    // Calculate player center for weapon positioning
+                    int playerCenterX = playerPosition.X + (width * scale) / 2;
+                    int playerCenterY = playerPosition.Y + (height * scale) / 2;
 
+                    // Draw player sprite
+                    var state = e.Graphics.Save();
                     try
                     {
                         if (isFacingLeft)
                         {
-                            // For left-facing: translate to position + width, then flip
-                            e.Graphics.TranslateTransform(
-                                playerPosition.X + width * scale,
-                                playerPosition.Y
-                            );
+                            e.Graphics.TranslateTransform(playerPosition.X + width * scale, playerPosition.Y);
                             e.Graphics.ScaleTransform(-1, 1);
-                            playerAnimation.DrawFrame(e.Graphics, new Rectangle(
-                                0, 0,
-                                width * scale,
-                                height * scale
-                            ));
+                            playerAnimation.DrawFrame(e.Graphics, new Rectangle(0, 0, width * scale, height * scale));
                         }
                         else
                         {
-                            // For right-facing: draw normally
                             playerAnimation.DrawFrame(e.Graphics, new Rectangle(
-                                playerPosition.X,
-                                playerPosition.Y,
-                                width * scale,
-                                height * scale
-                            ));
+                                playerPosition.X, playerPosition.Y, width * scale, height * scale));
                         }
                     }
                     finally
                     {
-                        // Always restore the graphics state
                         e.Graphics.Restore(state);
+                    }
+
+                    // Draw weapon
+                    if (gunSprite != null)
+                    {
+                        state = e.Graphics.Save();
+                        try
+                        {
+                            // Calculate gun angle using current mouse position
+                            float gunAngle = (float)Math.Atan2(
+                                (currentMousePosition.Y + cameraOffset.Y) - playerCenterY,
+                                (currentMousePosition.X + cameraOffset.X) - playerCenterX
+                            );
+
+                            // Move to player center
+                            e.Graphics.TranslateTransform(playerCenterX, playerCenterY);
+                            e.Graphics.RotateTransform((float)(gunAngle * 180 / Math.PI));
+
+                            // Draw gun
+                            if (isFacingLeft)
+                            {
+                                e.Graphics.ScaleTransform(1, -1);
+                            }
+
+                            // Adjusted offset and size for larger gun
+                            int gunOffsetX = 25;  // Increased offset for larger gun
+                            int gunOffsetY = -12; // Adjusted vertical position
+                            int gunWidth = 70;    // Doubled width (35 * 2)
+                            int gunHeight = 36;   // Doubled height (18 * 2)
+
+                            // Draw gun with new dimensions
+                            e.Graphics.DrawImage(gunSprite,
+                                gunOffsetX, gunOffsetY,
+                                gunWidth, gunHeight);
+                        }
+                        finally
+                        {
+                            e.Graphics.Restore(state);
+                        }
                     }
                 }
             }
@@ -324,10 +369,13 @@ namespace FormNavigation
 
         private void GameForm_MouseMove(object sender, MouseEventArgs e)
         {
-            // Update stored mouse world position
+            // Store current mouse position in screen coordinates
+            currentMousePosition = e.Location;
+            
+            // Update world position
             mouseWorldPos = new Point(
-                e.X + cameraOffset.X,
-                e.Y + cameraOffset.Y
+                currentMousePosition.X + cameraOffset.X,
+                currentMousePosition.Y + cameraOffset.Y
             );
         }
 
@@ -336,6 +384,7 @@ namespace FormNavigation
             base.OnFormClosing(e);
             gameTimer?.Stop();
             playerAnimation?.Dispose();
+            gunSprite?.Dispose();
             if (grassTiles != null)
             {
                 foreach (var tile in grassTiles)
