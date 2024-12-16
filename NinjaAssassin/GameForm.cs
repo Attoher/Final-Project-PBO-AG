@@ -11,7 +11,7 @@ namespace FormNavigation
         private Button backButton;
         private Timer gameTimer;
         private Point playerPosition;
-        private const int PLAYER_SPEED = 5;
+        private const int PLAYER_SPEED = 10;
         private bool isWPressed, isSPressed, isAPressed, isDPressed;
         private SpriteAnimation playerAnimation;
         private const string CHARACTERS_PATH = "Resources/Characters";
@@ -36,6 +36,11 @@ namespace FormNavigation
         private const float BULLET_SPEED = 15f;
         private const int BULLET_SIZE = 5;
         private const int STANDARD_WIDTH = 75; // Standard width for all characters
+        private const string BUSH_PATH = "Resources/Obstacles";
+        private Image bushSprite;
+        private List<Rectangle> bushColliders = new List<Rectangle>();
+        private const int BUSH_SIZE = 64;
+        private const int NUM_BUSHES = 50; // Jumlah bush yang akan di-spawn
 
         private class Bullet
         {
@@ -144,6 +149,16 @@ namespace FormNavigation
                 MessageBox.Show($"Error loading weapon sprite: {ex.Message}");
             }
 
+            try
+            {
+                bushSprite = Image.FromFile(System.IO.Path.Combine(BUSH_PATH, "Bush.png"));
+                GenerateRandomBushes();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading bush sprite: {ex.Message}");
+            }
+
             gameTimer.Start();
             this.Paint += GameForm_Paint;
         }
@@ -226,10 +241,17 @@ namespace FormNavigation
             isFacingLeft = mouseWorldPos.X < (playerPosition.X + GetCharacterDimensions().width / 2);
 
             // Update player position based on key states
-            if (isWPressed) playerPosition.Y -= PLAYER_SPEED;
-            if (isSPressed) playerPosition.Y += PLAYER_SPEED;
-            if (isAPressed) playerPosition.X -= PLAYER_SPEED;
-            if (isDPressed) playerPosition.X += PLAYER_SPEED;
+            Point newPosition = playerPosition;
+            if (isWPressed) newPosition.Y -= PLAYER_SPEED;
+            if (isSPressed) newPosition.Y += PLAYER_SPEED;
+            if (isAPressed) newPosition.X -= PLAYER_SPEED;
+            if (isDPressed) newPosition.X += PLAYER_SPEED;
+
+            // Hanya update posisi jika tidak bertabrakan dengan bush
+            if (!CheckBushCollision(newPosition))
+            {
+                playerPosition = newPosition;
+            }
 
             // Get current character dimensions and bounds checking
             var (width, height) = GetCharacterDimensions();
@@ -297,6 +319,24 @@ namespace FormNavigation
                 using (Pen pen = new Pen(Color.DarkGray))
                 {
                     e.Graphics.DrawRectangle(pen, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+                }
+
+                // Tambahkan setelah menggambar grass tiles dan sebelum player
+                if (bushSprite != null)
+                {
+                    for (int i = 0; i < bushColliders.Count; i++)
+                    {
+                        Rectangle bush = bushColliders[i];
+                        // Gambar bush dengan posisi yang disesuaikan
+                        e.Graphics.DrawImage(bushSprite,
+                            bush.X - BUSH_SIZE/4,        // Kembalikan offset X
+                            bush.Y - (BUSH_SIZE * 1/3),  // Kembalikan ke posisi atas bush
+                            BUSH_SIZE,                   // Ukuran sprite bush
+                            BUSH_SIZE);
+
+                        // Debug: Uncomment untuk melihat collider
+                        // e.Graphics.DrawRectangle(Pens.Red, bush);
+                    }
                 }
 
                 // Draw player and weapon
@@ -480,11 +520,50 @@ namespace FormNavigation
                     tile?.Dispose();
                 }
             }
+            bushSprite?.Dispose();
         }
 
         private void BackButton_Click(object sender, EventArgs e)
         {
             this.Close(); // Menutup GameForm dan kembali ke MainForm
+        }
+
+        private void GenerateRandomBushes()
+        {
+            for (int i = 0; i < NUM_BUSHES; i++)
+            {
+                int x = random.Next(WORLD_WIDTH - BUSH_SIZE);
+                int y = random.Next(WORLD_HEIGHT - BUSH_SIZE);
+                
+                // Collider lebih kecil dan tetap di 1/3 bagian bawah
+                Rectangle collider = new Rectangle(
+                    x + BUSH_SIZE/4,              // Offset dari pinggir 1/4 ukuran
+                    y + (BUSH_SIZE * 1/3),        // Posisi Y di 2/3 tinggi sprite
+                    BUSH_SIZE/2,                  // Lebar collider 1/2 dari sprite
+                    BUSH_SIZE/3                   // Tinggi collider 1/3 dari sprite
+                );
+                
+                bushColliders.Add(collider);
+            }
+        }
+
+        private bool CheckBushCollision(Point newPosition)
+        {
+            Rectangle playerRect = new Rectangle(
+                newPosition.X - STANDARD_WIDTH/2,
+                newPosition.Y - STANDARD_WIDTH/2,
+                STANDARD_WIDTH,
+                STANDARD_WIDTH
+            );
+
+            foreach (var bush in bushColliders)
+            {
+                if (playerRect.IntersectsWith(bush))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }
