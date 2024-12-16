@@ -436,6 +436,16 @@ namespace FormNavigation
                 }
             }
 
+            // Update enemies
+            foreach (var enemy in enemies)
+            {
+                if (enemy.IsActive)
+                {
+                    enemy.MoveTowardsPlayer(playerPosition);
+                    enemy.Update();
+                }
+            }
+
             UpdateCameraPosition();
             this.Invalidate(); // Always redraw when moving
         }

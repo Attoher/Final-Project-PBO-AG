@@ -18,6 +18,7 @@ namespace FormNavigation
         public float Speed { get; private set; }
         private const int ENEMY_SIZE = 128; // Changed from 64 to 128 (2x larger)
         public Rectangle Bounds => new Rectangle(Position.X - ENEMY_SIZE/2, Position.Y - ENEMY_SIZE/2, ENEMY_SIZE, ENEMY_SIZE);
+        private bool isFacingLeft = false;
 
         public Enemy(string type, Point position, SpriteAnimation idle, SpriteAnimation walk, SpriteAnimation attack)
         {
@@ -62,7 +63,66 @@ namespace FormNavigation
             }
         }
 
+        public void MoveTowardsPlayer(Point playerPosition)
+        {
+            // Calculate direction to player
+            float dx = playerPosition.X - Position.X;
+            float dy = playerPosition.Y - Position.Y;
+            
+            // Update facing direction
+            isFacingLeft = dx < 0;
+
+            // Normalize the direction
+            float distance = (float)Math.Sqrt(dx * dx + dy * dy);
+            if (distance > 0)
+            {
+                dx /= distance;
+                dy /= distance;
+
+                // Update position
+                Position = new Point(
+                    Position.X + (int)(dx * Speed),
+                    Position.Y + (int)(dy * Speed)
+                );
+
+                // Update animation state
+                CurrentState = "Walk";
+            }
+            else
+            {
+                CurrentState = "Idle";
+            }
+        }
+
         public void Draw(Graphics g, Rectangle destRect)
+        {
+            var state = g.Save();
+            try
+            {
+                if (isFacingLeft)
+                {
+                    g.TranslateTransform(Position.X, Position.Y);
+                    g.ScaleTransform(-1, 1);
+                    Rectangle flippedRect = new Rectangle(
+                        -destRect.Width/2,
+                        -destRect.Height/2,
+                        destRect.Width,
+                        destRect.Height
+                    );
+                    DrawAnimation(g, flippedRect);
+                }
+                else
+                {
+                    DrawAnimation(g, destRect);
+                }
+            }
+            finally
+            {
+                g.Restore(state);
+            }
+        }
+
+        private void DrawAnimation(Graphics g, Rectangle destRect)
         {
             switch (CurrentState)
             {
