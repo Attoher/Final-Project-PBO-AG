@@ -41,7 +41,7 @@ namespace FormNavigation
         private Image bushSprite;
         private List<Rectangle> bushColliders = new List<Rectangle>();
         private const int BUSH_SIZE = 64;
-        private const int NUM_BUSHES = 50; // Jumlah bush yang akan di-spawn
+        private const int NUM_BUSHES = 25; // Jumlah bush yang akan di-spawn
         private SpriteAnimation playerIdleAnimation;
         private SpriteAnimation playerRunAnimation;
         private const string CHARACTERS_RUN_PATH = "Resources/Characters/Run";
@@ -55,6 +55,12 @@ namespace FormNavigation
         private const float SKILL_DURATION = 1000f; // 1 second skill animation
         private Point lastMouseWorldPos;
         private bool hasMouseMoved = false;
+        private bool skillCompleted = true;  // Add this field
+        private const float SKILL_COOLDOWN = 2000f; // 2 seconds cooldown
+        private DateTime lastSkillTime = DateTime.MinValue;
+        private int skillRepetitionsRequired;
+        private int currentSkillRepetition;
+        private int skillFrameCount;
 
         private class Bullet
         {
@@ -198,6 +204,16 @@ namespace FormNavigation
                     "Samurai" => (50, 50, 4, 12, 8),   // Run: 12 frames
                     "Scarecrow" => (25, 25, 4, 4, 9),  // Run: 4 frames
                     "Shaman" => (25, 50, 4, 4, 4),     // Run: 4 frames
+                    _ => throw new Exception($"Invalid character: {GameState.SelectedCharacter}")
+                };
+
+                (skillFrameCount, skillRepetitionsRequired) = GameState.SelectedCharacter switch
+                {
+                    "Ninja" => (11, 1),      // 11 frames, 1 time
+                    "Puppeteer" => (8, 2),   // 8 frames, 2 times
+                    "Samurai" => (8, 1),     // 8 frames, 1 time
+                    "Scarecrow" => (9, 1),   // 9 frames, 1 time
+                    "Shaman" => (4, 3),      // 4 frames, 3 times
                     _ => throw new Exception($"Invalid character: {GameState.SelectedCharacter}")
                 };
 
@@ -359,10 +375,25 @@ namespace FormNavigation
             if (isSkillActive)
             {
                 TimeSpan skillElapsed = DateTime.Now - skillStartTime;
-                if (skillElapsed.TotalMilliseconds >= SKILL_DURATION)
+                float frameTime = SKILL_DURATION / skillFrameCount;
+                int currentFrame = (int)(skillElapsed.TotalMilliseconds / frameTime) % skillFrameCount;
+
+                if (currentFrame == 0 && skillElapsed.TotalMilliseconds >= SKILL_DURATION)
                 {
-                    isSkillActive = false;
-                    playerSkillAnimation.Stop();
+                    currentSkillRepetition++;
+                    if (currentSkillRepetition >= skillRepetitionsRequired)
+                    {
+                        isSkillActive = false;
+                        skillCompleted = true;
+                        playerSkillAnimation?.Stop();
+                    }
+                    else
+                    {
+                        // Reset for next repetition
+                        skillStartTime = DateTime.Now;
+                        playerSkillAnimation?.Stop();
+                        playerSkillAnimation?.Start();
+                    }
                 }
             }
 
@@ -620,11 +651,17 @@ namespace FormNavigation
                 case Keys.A: isAPressed = true; break;
                 case Keys.D: isDPressed = true; break;
                 case Keys.E:
-                    if (!isSkillActive)
+                    // Check both skill completion and cooldown
+                    TimeSpan timeSinceLastSkill = DateTime.Now - lastSkillTime;
+                    if (!isSkillActive && skillCompleted && timeSinceLastSkill.TotalMilliseconds >= SKILL_COOLDOWN)
                     {
                         isSkillActive = true;
+                        skillCompleted = false;
+                        currentSkillRepetition = 0;
                         skillStartTime = DateTime.Now;
-                        playerSkillAnimation.Start();
+                        lastSkillTime = DateTime.Now; // Update last skill time
+                        playerSkillAnimation?.Stop();
+                        playerSkillAnimation?.Start();
                     }
                     break;
             }
