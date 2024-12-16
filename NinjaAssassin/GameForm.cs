@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Drawing.Drawing2D;
 using System.Collections.Generic;
+using System.IO; // Tambahkan ini untuk Path, File, dan Directory
 
 namespace FormNavigation
 {
@@ -13,7 +14,6 @@ namespace FormNavigation
         private Point playerPosition;
         private const int PLAYER_SPEED = 10;
         private bool isWPressed, isSPressed, isAPressed, isDPressed;
-        private SpriteAnimation playerAnimation;
         private const string CHARACTERS_PATH = "Resources/Characters";
         private Point cameraOffset;
         private const int WORLD_WIDTH = 2000;  // Total world width
@@ -41,6 +41,9 @@ namespace FormNavigation
         private List<Rectangle> bushColliders = new List<Rectangle>();
         private const int BUSH_SIZE = 64;
         private const int NUM_BUSHES = 50; // Jumlah bush yang akan di-spawn
+        private SpriteAnimation playerIdleAnimation;
+        private SpriteAnimation playerRunAnimation;
+        private const string CHARACTERS_RUN_PATH = "Resources/Characters/Run";
 
         private class Bullet
         {
@@ -91,76 +94,110 @@ namespace FormNavigation
 
         private void InitializeGame()
         {
-            playerPosition = new Point(
-                WORLD_WIDTH / 2,  // Start in center of world
-                WORLD_HEIGHT / 2
-            );
-            UpdateCameraPosition();
-
-            gameTimer = new Timer();
-            gameTimer.Interval = 16;
-            gameTimer.Tick += GameTimer_Tick;
-
             try
             {
-                string characterFile = GameState.SelectedCharacter + "_Idle.png";
-                Image playerSheet = Image.FromFile(System.IO.Path.Combine(CHARACTERS_PATH, characterFile));
-                
-                // Set animation parameters based on character
-                int frameWidth = 24, frameHeight = 24, frames = 9;
-                switch (GameState.SelectedCharacter)
+                // Initialize game timer first
+                gameTimer = new Timer
                 {
-                    case "Ninja":
-                        frameWidth = 25; frameHeight = 25; frames = 9;
-                        break;
-                    case "Puppeteer":
-                        frameWidth = 25; frameHeight = 50; frames = 4;
-                        break;
-                    case "Samurai":
-                        frameWidth = 50; frameHeight = 50; frames = 4;
-                        break;
-                    case "Scarecrow":
-                        frameWidth = 25; frameHeight = 25; frames = 4;
-                        break;
-                    case "Shaman":
-                        frameWidth = 25; frameHeight = 50; frames = 4;
-                        break;
+                    Interval = 16 // ~60 FPS
+                };
+                gameTimer.Tick += GameTimer_Tick;
+
+                // Set initial position
+                playerPosition = new Point(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+                UpdateCameraPosition();
+
+                // Create required directories if they don't exist
+                string runPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CHARACTERS_RUN_PATH);
+                if (!Directory.Exists(runPath))
+                {
+                    Directory.CreateDirectory(runPath);
                 }
 
-                playerAnimation = new SpriteAnimation(playerSheet, frameWidth, frameHeight, frames, 50);
-                playerAnimation.Start();
+                // Load resources
+                LoadCharacterAnimations();
+                LoadGrassTiles();
+                
+                if (grassTiles != null && grassTiles.Length > 0)
+                {
+                    GenerateTileMap();
+                }
+
+                // Load weapon and obstacles
+                try
+                {
+                    string weaponPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, WEAPONS_PATH, "Gun1.png");
+                    string bushPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, BUSH_PATH, "Bush.png");
+
+                    if (File.Exists(weaponPath))
+                    {
+                        gunSprite = Image.FromFile(weaponPath);
+                    }
+
+                    if (File.Exists(bushPath))
+                    {
+                        bushSprite = Image.FromFile(bushPath);
+                        GenerateRandomBushes();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error loading sprites: {ex.Message}");
+                }
+
+                // Start game loop
+                gameTimer.Start();
+                this.Paint += GameForm_Paint;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading player animation: {ex.Message}");
+                MessageBox.Show($"Error initializing game:\n{ex.Message}\n\nStack trace:\n{ex.StackTrace}");
+                this.Close();
             }
+        }
 
-            // Load grass tiles
-            LoadGrassTiles();
-            GenerateTileMap();
-
-            // Load weapon sprite
+        private void LoadCharacterAnimations()
+        {
             try
             {
-                gunSprite = Image.FromFile(System.IO.Path.Combine(WEAPONS_PATH, "Gun1.png"));
+                string basePath = AppDomain.CurrentDomain.BaseDirectory;
+                string idleFile = Path.Combine(basePath, CHARACTERS_PATH, $"{GameState.SelectedCharacter}_Idle.png");
+                string runFile = Path.Combine(basePath, CHARACTERS_RUN_PATH, $"{GameState.SelectedCharacter}_Run.png");
+
+                if (!File.Exists(idleFile))
+                {
+                    throw new FileNotFoundException($"Idle animation not found: {idleFile}");
+                }
+                if (!File.Exists(runFile))
+                {
+                    throw new FileNotFoundException($"Run animation not found: {runFile}");
+                }
+
+                // Update run frames untuk masing-masing karakter
+                var (frameWidth, frameHeight, idleFrames, runFrames) = GameState.SelectedCharacter switch
+                {
+                    "Ninja" => (25, 25, 9, 6),      // Run: 6 frames
+                    "Puppeteer" => (25, 50, 4, 4),  // Run: 4 frames
+                    "Samurai" => (50, 50, 4, 12),   // Run: 12 frames
+                    "Scarecrow" => (25, 25, 4, 4),  // Run: 4 frames
+                    "Shaman" => (25, 50, 4, 4),     // Run: 4 frames
+                    _ => throw new Exception($"Invalid character: {GameState.SelectedCharacter}")
+                };
+
+                using (var idleSheet = Image.FromFile(idleFile))
+                using (var runSheet = Image.FromFile(runFile))
+                {
+                    playerIdleAnimation = new SpriteAnimation((Image)idleSheet.Clone(), frameWidth, frameHeight, idleFrames, 50);
+                    playerRunAnimation = new SpriteAnimation((Image)runSheet.Clone(), frameWidth, frameHeight, runFrames, 50);
+                }
+
+                playerIdleAnimation.Start();
+                playerRunAnimation.Start();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading weapon sprite: {ex.Message}");
+                throw new Exception($"Error loading character animations: {ex.Message}", ex);
             }
-
-            try
-            {
-                bushSprite = Image.FromFile(System.IO.Path.Combine(BUSH_PATH, "Bush.png"));
-                GenerateRandomBushes();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error loading bush sprite: {ex.Message}");
-            }
-
-            gameTimer.Start();
-            this.Paint += GameForm_Paint;
         }
 
         private void LoadGrassTiles()
@@ -340,7 +377,7 @@ namespace FormNavigation
                 }
 
                 // Draw player and weapon
-                if (playerAnimation != null)
+                if (playerIdleAnimation != null && playerRunAnimation != null)
                 {
                     var (width, height) = GetCharacterDimensions();
                     var (scaledWidth, scaledHeight) = GetScaledDimensions();
@@ -360,13 +397,30 @@ namespace FormNavigation
                         {
                             e.Graphics.TranslateTransform(playerPosition.X, playerPosition.Y);
                             e.Graphics.ScaleTransform(-1, 1);
-                            playerAnimation.DrawFrame(e.Graphics, 
-                                new Rectangle(-scaledWidth/2, -scaledHeight/2, scaledWidth, scaledHeight));
+                            
+                            if (isMoving)
+                            {
+                                playerRunAnimation.DrawFrame(e.Graphics, 
+                                    new Rectangle(-scaledWidth/2, -scaledHeight/2, scaledWidth, scaledHeight));
+                            }
+                            else
+                            {
+                                playerIdleAnimation.DrawFrame(e.Graphics, 
+                                    new Rectangle(-scaledWidth/2, -scaledHeight/2, scaledWidth, scaledHeight));
+                            }
                         }
                         else
                         {
-                            playerAnimation.DrawFrame(e.Graphics, 
-                                new Rectangle(drawX, drawY, scaledWidth, scaledHeight));
+                            if (isMoving)
+                            {
+                                playerRunAnimation.DrawFrame(e.Graphics, 
+                                    new Rectangle(drawX, drawY, scaledWidth, scaledHeight));
+                            }
+                            else
+                            {
+                                playerIdleAnimation.DrawFrame(e.Graphics, 
+                                    new Rectangle(drawX, drawY, scaledWidth, scaledHeight));
+                            }
                         }
 
                         e.Graphics.Restore(state);
@@ -511,7 +565,8 @@ namespace FormNavigation
         {
             base.OnFormClosing(e);
             gameTimer?.Stop();
-            playerAnimation?.Dispose();
+            playerIdleAnimation?.Dispose();
+            playerRunAnimation?.Dispose();
             gunSprite?.Dispose();
             if (grassTiles != null)
             {
