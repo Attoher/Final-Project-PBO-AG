@@ -33,9 +33,10 @@ namespace FormNavigation
         private const int GUN_OFFSET_Y = 20;
         private Point currentMousePosition;  // Add this field
         private List<Bullet> bullets = new List<Bullet>();
-        private const float BULLET_SPEED = 15f;
+        private const float BULLET_SPEED = 30f; // Doubled from 15f to 30f
         private const int BULLET_SIZE = 5;
         private const int STANDARD_WIDTH = 75; // Standard width for all characters
+        private const int SAMURAI_WIDTH = 150; // Special width for Samurai (2x normal)
         private const string BUSH_PATH = "Resources/Obstacles";
         private Image bushSprite;
         private List<Rectangle> bushColliders = new List<Rectangle>();
@@ -44,6 +45,8 @@ namespace FormNavigation
         private SpriteAnimation playerIdleAnimation;
         private SpriteAnimation playerRunAnimation;
         private const string CHARACTERS_RUN_PATH = "Resources/Characters/Run";
+        private const float BULLET_COOLDOWN = 500f; // 500ms = 0.5 seconds
+        private DateTime lastBulletTime = DateTime.MinValue;
 
         private class Bullet
         {
@@ -250,12 +253,18 @@ namespace FormNavigation
         private (int width, int height) GetScaledDimensions()
         {
             var (originalWidth, originalHeight) = GetCharacterDimensions();
-            float scaleRatio = (float)STANDARD_WIDTH / originalWidth;
+            float scaleRatio;
             
-            return (
-                STANDARD_WIDTH,
-                (int)(originalHeight * scaleRatio)
-            );
+            // Use larger scale for Samurai
+            if (GameState.SelectedCharacter == "Samurai")
+            {
+                scaleRatio = (float)SAMURAI_WIDTH / originalWidth;
+                return (SAMURAI_WIDTH, (int)(originalHeight * scaleRatio));
+            }
+            
+            // Normal scale for other characters
+            scaleRatio = (float)STANDARD_WIDTH / originalWidth;
+            return (STANDARD_WIDTH, (int)(originalHeight * scaleRatio));
         }
 
         private void UpdateCameraPosition()
@@ -387,8 +396,21 @@ namespace FormNavigation
                             BUSH_SIZE,                   // Ukuran sprite bush
                             BUSH_SIZE);
 
-                        // Debug: Uncomment untuk melihat collider
-                        // e.Graphics.DrawRectangle(Pens.Red, bush);
+                        // Debug: Draw collider boxes
+                        using (Pen debugPen = new Pen(Color.Red, 2))
+                        {
+                            // Draw bush collider
+                            e.Graphics.DrawRectangle(debugPen, bush);
+
+                            // Draw player collider
+                            Rectangle playerRect = new Rectangle(
+                                playerPosition.X - STANDARD_WIDTH/2,
+                                playerPosition.Y - STANDARD_WIDTH/2,
+                                STANDARD_WIDTH,
+                                STANDARD_WIDTH
+                            );
+                            e.Graphics.DrawRectangle(debugPen, playerRect);
+                        }
                     }
                 }
 
@@ -398,11 +420,19 @@ namespace FormNavigation
                     var (width, height) = GetCharacterDimensions();
                     var (scaledWidth, scaledHeight) = GetScaledDimensions();
 
-                    // Calculate drawing position adjusted for center
-                    int drawX = playerPosition.X - scaledWidth / 2;
-                    int drawY = playerPosition.Y - scaledHeight / 2;
+                    // Adjust drawing position for Puppeteer
+                    int drawY;
+                    if (GameState.SelectedCharacter == "Puppeteer")
+                    {
+                        // Fine tune the offset - reduced from 1/4 to 1/3
+                        drawY = playerPosition.Y - scaledHeight / 3;
+                    }
+                    else
+                    {
+                        drawY = playerPosition.Y - scaledHeight / 2;
+                    }
                     
-                    // Calculate player center (now exactly at playerPosition)
+                    int drawX = playerPosition.X - scaledWidth / 2;
                     int playerCenterX = playerPosition.X;
                     int playerCenterY = playerPosition.Y;
 
@@ -417,7 +447,10 @@ namespace FormNavigation
                             if (isMoving)
                             {
                                 playerRunAnimation.DrawFrame(e.Graphics, 
-                                    new Rectangle(-scaledWidth/2, -scaledHeight/2, scaledWidth, scaledHeight));
+                                    new Rectangle(-scaledWidth/2, 
+                                                GameState.SelectedCharacter == "Puppeteer" ? -scaledHeight/3 : -scaledHeight/2, 
+                                                scaledWidth, 
+                                                scaledHeight));
                             }
                             else
                             {
@@ -435,7 +468,7 @@ namespace FormNavigation
                             else
                             {
                                 playerIdleAnimation.DrawFrame(e.Graphics, 
-                                    new Rectangle(drawX, drawY, scaledWidth, scaledHeight));
+                                    new Rectangle(drawX, playerPosition.Y - scaledHeight/2, scaledWidth, scaledHeight));
                             }
                         }
 
@@ -535,6 +568,16 @@ namespace FormNavigation
         {
             if (e.Button == MouseButtons.Left)
             {
+                // Check cooldown
+                TimeSpan timeSinceLastBullet = DateTime.Now - lastBulletTime;
+                if (timeSinceLastBullet.TotalMilliseconds < BULLET_COOLDOWN)
+                {
+                    return; // Still in cooldown, don't shoot
+                }
+
+                // Update last bullet time
+                lastBulletTime = DateTime.Now;
+
                 int playerCenterX = playerPosition.X;
                 int playerCenterY = playerPosition.Y;
                 
@@ -620,11 +663,13 @@ namespace FormNavigation
 
         private bool CheckBushCollision(Point newPosition)
         {
+            var (scaledWidth, scaledHeight) = GetScaledDimensions();
+            
             Rectangle playerRect = new Rectangle(
-                newPosition.X - STANDARD_WIDTH/2,
-                newPosition.Y - STANDARD_WIDTH/2,
-                STANDARD_WIDTH,
-                STANDARD_WIDTH
+                newPosition.X - scaledWidth/2,
+                newPosition.Y - scaledHeight/2,
+                scaledWidth,
+                scaledHeight
             );
 
             foreach (var bush in bushColliders)
