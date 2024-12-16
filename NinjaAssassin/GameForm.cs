@@ -32,8 +32,8 @@ namespace FormNavigation
         private const int GUN_OFFSET_Y = 20;
         private Point currentMousePosition;  // Add this field
         private List<Bullet> bullets = new List<Bullet>();
-        private const float BULLET_SPEED = 30f; // Doubled from 15f to 30f
-        private const int BULLET_SIZE = 5;
+        private const float BULLET_SPEED = 20f; // Slightly reduced speed for larger bullets
+        private const int BULLET_SIZE = 15; // Changed from 5 to 15
         private const int STANDARD_WIDTH = 75; // Standard width for all characters
         private const int SAMURAI_WIDTH = 150; // Special width for Samurai (2x normal)
         private const string BUSH_PATH = "Resources/Obstacles";
@@ -44,14 +44,14 @@ namespace FormNavigation
         private SpriteAnimation playerIdleAnimation;
         private SpriteAnimation playerRunAnimation;
         private const string CHARACTERS_RUN_PATH = "Resources/Characters/Run";
-        private const float BULLET_COOLDOWN = 100f; // 500ms = 0.5 seconds
+        private const float BULLET_COOLDOWN = 500f;
         private DateTime lastBulletTime = DateTime.MinValue;
         private Bitmap tileMapBuffer; // Add this field
         private const string CHARACTERS_SKILL_PATH = "Resources/Characters/Skills";
         private SpriteAnimation playerSkillAnimation;
         private bool isSkillActive = false;
         private DateTime skillStartTime;
-        private const float SKILL_DURATION = 1000f; // 1 second skill animation
+        private const float SKILL_DURATION = 5f;
         private Point lastMouseWorldPos;
         private bool hasMouseMoved = false;
         private bool skillCompleted = true;  // Add this field
