@@ -35,6 +35,7 @@ namespace FormNavigation
         private List<Bullet> bullets = new List<Bullet>();
         private const float BULLET_SPEED = 15f;
         private const int BULLET_SIZE = 5;
+        private const int STANDARD_WIDTH = 75; // Standard width for all characters
 
         private class Bullet
         {
@@ -194,19 +195,22 @@ namespace FormNavigation
             };
         }
 
+        private (int width, int height) GetScaledDimensions()
+        {
+            var (originalWidth, originalHeight) = GetCharacterDimensions();
+            float scaleRatio = (float)STANDARD_WIDTH / originalWidth;
+            
+            return (
+                STANDARD_WIDTH,
+                (int)(originalHeight * scaleRatio)
+            );
+        }
+
         private void UpdateCameraPosition()
         {
-            var (width, height) = GetCharacterDimensions();
-            int scale = GameState.SelectedCharacter switch
-            {
-                "Samurai" => 2,
-                "Puppeteer" or "Shaman" => 2,
-                _ => 3
-            };
-
-            // Center camera on player's center
-            cameraOffset.X = playerPosition.X + ((width * scale) / 2) - (ClientSize.Width / 2);
-            cameraOffset.Y = playerPosition.Y + ((height * scale) / 2) - (ClientSize.Height / 2);
+            // Center camera directly on player position since it's now the center point
+            cameraOffset.X = playerPosition.X - (ClientSize.Width / 2);
+            cameraOffset.Y = playerPosition.Y - (ClientSize.Height / 2);
 
             // Clamp camera to world bounds
             cameraOffset.X = Math.Max(0, Math.Min(cameraOffset.X, WORLD_WIDTH - ClientSize.Width));
@@ -299,75 +303,72 @@ namespace FormNavigation
                 if (playerAnimation != null)
                 {
                     var (width, height) = GetCharacterDimensions();
-                    int scale = GameState.SelectedCharacter switch
-                    {
-                        "Samurai" => 2,
-                        "Puppeteer" or "Shaman" => 2,
-                        _ => 3
-                    };
+                    var (scaledWidth, scaledHeight) = GetScaledDimensions();
 
-                    // Calculate player center for weapon positioning
-                    int playerCenterX = playerPosition.X + (width * scale) / 2;
-                    int playerCenterY = playerPosition.Y + (height * scale) / 2;
+                    // Calculate drawing position adjusted for center
+                    int drawX = playerPosition.X - scaledWidth / 2;
+                    int drawY = playerPosition.Y - scaledHeight / 2;
+                    
+                    // Calculate player center (now exactly at playerPosition)
+                    int playerCenterX = playerPosition.X;
+                    int playerCenterY = playerPosition.Y;
 
-                    // Draw player sprite
                     var state = e.Graphics.Save();
                     try
                     {
                         if (isFacingLeft)
                         {
-                            e.Graphics.TranslateTransform(playerPosition.X + width * scale, playerPosition.Y);
+                            e.Graphics.TranslateTransform(playerPosition.X, playerPosition.Y);
                             e.Graphics.ScaleTransform(-1, 1);
-                            playerAnimation.DrawFrame(e.Graphics, new Rectangle(0, 0, width * scale, height * scale));
+                            playerAnimation.DrawFrame(e.Graphics, 
+                                new Rectangle(-scaledWidth/2, -scaledHeight/2, scaledWidth, scaledHeight));
                         }
                         else
                         {
-                            playerAnimation.DrawFrame(e.Graphics, new Rectangle(
-                                playerPosition.X, playerPosition.Y, width * scale, height * scale));
+                            playerAnimation.DrawFrame(e.Graphics, 
+                                new Rectangle(drawX, drawY, scaledWidth, scaledHeight));
                         }
-                    }
-                    finally
-                    {
-                        e.Graphics.Restore(state);
-                    }
 
-                    // Draw weapon
-                    if (gunSprite != null)
-                    {
+                        e.Graphics.Restore(state);
                         state = e.Graphics.Save();
-                        try
+
+                        // Draw weapon separately
+                        if (gunSprite != null)
                         {
-                            // Calculate gun angle using current mouse position
                             float gunAngle = (float)Math.Atan2(
                                 (currentMousePosition.Y + cameraOffset.Y) - playerCenterY,
                                 (currentMousePosition.X + cameraOffset.X) - playerCenterX
                             );
 
-                            // Move to player center
                             e.Graphics.TranslateTransform(playerCenterX, playerCenterY);
                             e.Graphics.RotateTransform((float)(gunAngle * 180 / Math.PI));
 
-                            // Draw gun
+                            int gunWidth = 70;
+                            int gunHeight = 36;
+
                             if (isFacingLeft)
                             {
+                                // Hanya flip horizontal untuk senjata saat menghadap kiri
                                 e.Graphics.ScaleTransform(1, -1);
+                                e.Graphics.DrawImage(gunSprite,
+                                    25,
+                                    -20, // Mengubah dari positif ke negatif untuk menggerakkan ke atas
+                                    gunWidth,
+                                    gunHeight);
                             }
-
-                            // Adjusted offset and size for larger gun
-                            int gunOffsetX = 25;  // Increased offset for larger gun
-                            int gunOffsetY = -12; // Adjusted vertical position
-                            int gunWidth = 70;    // Doubled width (35 * 2)
-                            int gunHeight = 36;   // Doubled height (18 * 2)
-
-                            // Draw gun with new dimensions
-                            e.Graphics.DrawImage(gunSprite,
-                                gunOffsetX, gunOffsetY,
-                                gunWidth, gunHeight);
+                            else
+                            {
+                                e.Graphics.DrawImage(gunSprite,
+                                    25,
+                                    -20, // Mengubah offset Y menjadi lebih besar (negatif karena tidak di-flip)
+                                    gunWidth,
+                                    gunHeight);
+                            }
                         }
-                        finally
-                        {
-                            e.Graphics.Restore(state);
-                        }
+                    }
+                    finally
+                    {
+                        e.Graphics.Restore(state);
                     }
                 }
 
@@ -424,19 +425,9 @@ namespace FormNavigation
         {
             if (e.Button == MouseButtons.Left)
             {
-                var (width, height) = GetCharacterDimensions();
-                int scale = GameState.SelectedCharacter switch
-                {
-                    "Samurai" => 2,
-                    "Puppeteer" or "Shaman" => 2,
-                    _ => 3
-                };
-
-                // Calculate gun position
-                int playerCenterX = playerPosition.X + (width * scale) / 2;
-                int playerCenterY = playerPosition.Y + (height * scale) / 2;
+                int playerCenterX = playerPosition.X;
+                int playerCenterY = playerPosition.Y;
                 
-                // Calculate angle to mouse
                 float angle = (float)Math.Atan2(
                     (currentMousePosition.Y + cameraOffset.Y) - playerCenterY,
                     (currentMousePosition.X + cameraOffset.X) - playerCenterX
@@ -446,10 +437,21 @@ namespace FormNavigation
                 float velocityX = (float)Math.Cos(angle) * BULLET_SPEED;
                 float velocityY = (float)Math.Sin(angle) * BULLET_SPEED;
 
-                // Create bullet at gun tip position
-                int gunOffsetX = 25 + 70; // gun offset + gun width
-                float bulletStartX = playerCenterX + gunOffsetX * (float)Math.Cos(angle);
-                float bulletStartY = playerCenterY + gunOffsetX * (float)Math.Sin(angle);
+                // Calculate bullet spawn position
+                int gunOffsetX = 95; // Distance from center to gun tip
+                float bulletStartX, bulletStartY;
+
+                if (isFacingLeft)
+                {
+                    // When facing left, reverse the angle but keep same spawn distance
+                    bulletStartX = playerCenterX + (gunOffsetX * (float)Math.Cos(angle));
+                    bulletStartY = playerCenterY + (gunOffsetX * (float)Math.Sin(angle));
+                }
+                else
+                {
+                    bulletStartX = playerCenterX + (gunOffsetX * (float)Math.Cos(angle));
+                    bulletStartY = playerCenterY + (gunOffsetX * (float)Math.Sin(angle));
+                }
 
                 bullets.Add(new Bullet
                 {
