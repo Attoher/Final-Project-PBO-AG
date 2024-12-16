@@ -277,12 +277,28 @@ namespace FormNavigation
             // Update facing direction based on stored mouse position
             isFacingLeft = mouseWorldPos.X < (playerPosition.X + GetCharacterDimensions().width / 2);
 
-            // Update player position based on key states
-            Point newPosition = playerPosition;
-            if (isWPressed) newPosition.Y -= PLAYER_SPEED;
-            if (isSPressed) newPosition.Y += PLAYER_SPEED;
-            if (isAPressed) newPosition.X -= PLAYER_SPEED;
-            if (isDPressed) newPosition.X += PLAYER_SPEED;
+            // Calculate movement vector
+            float moveX = 0;
+            float moveY = 0;
+
+            if (isAPressed) moveX -= 1;
+            if (isDPressed) moveX += 1;
+            if (isWPressed) moveY -= 1;
+            if (isSPressed) moveY += 1;
+
+            // Normalize diagonal movement
+            if (moveX != 0 && moveY != 0)
+            {
+                float length = (float)Math.Sqrt(moveX * moveX + moveY * moveY);
+                moveX /= length;
+                moveY /= length;
+            }
+
+            // Apply movement speed
+            Point newPosition = new Point(
+                playerPosition.X + (int)(moveX * PLAYER_SPEED),
+                playerPosition.Y + (int)(moveY * PLAYER_SPEED)
+            );
 
             // Hanya update posisi jika tidak bertabrakan dengan bush
             if (!CheckBushCollision(newPosition))
