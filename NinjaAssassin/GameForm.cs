@@ -81,6 +81,15 @@ namespace FormNavigation
         private int skillInterval;
         private float skillDuration;
 
+        private const float INVULNERABILITY_DURATION = 1000f; // 1 second of invulnerability after hit
+        private DateTime lastHitTime = DateTime.MinValue;
+        private bool isInvulnerable = false;
+
+        // Add these constants for HP bar styling
+        private const int HP_BAR_WIDTH = 200;
+        private const int HP_BAR_HEIGHT = 20;
+        private const int HP_BAR_MARGIN = 10;
+
         private class Bullet
         {
             public float X { get; set; }
@@ -458,6 +467,36 @@ namespace FormNavigation
                 lastEnemySpawnTime = DateTime.Now;
             }
 
+            // Handle enemy attacks
+            isInvulnerable = (DateTime.Now - lastHitTime).TotalMilliseconds < INVULNERABILITY_DURATION;
+
+            for (int i = enemies.Count - 1; i >= 0; i--)
+            {
+                var enemy = enemies[i];
+                if (enemy.IsActive && enemy.ShouldDealDamage(playerPosition))
+                {
+                    if (!isInvulnerable)
+                    {
+                        playerCurrentHealth -= enemy.Attack;
+                        lastHitTime = DateTime.Now;
+                        isInvulnerable = true;
+                        
+                        // Check if player died
+                        if (playerCurrentHealth <= 0)
+                        {
+                            GameOver();
+                            return;
+                        }
+                    }
+
+                    // Remove Bomb Puppet after explosion
+                    if (enemy.Type == "Bomb Puppet" && enemy.HasExploded)
+                    {
+                        enemies.RemoveAt(i);
+                    }
+                }
+            }
+
             UpdateCameraPosition();
             this.Invalidate(); // Always redraw when moving
         }
@@ -688,27 +727,21 @@ namespace FormNavigation
                     }
                 }
 
-                // Add this before bullets drawing, after player drawing
+                // Replace enemy drawing code
                 foreach (var enemy in enemies)
                 {
                     if (enemy.IsActive)
                     {
-                        Rectangle enemyRect = new Rectangle(
-                            enemy.Position.X - 64,  // Changed from 32 to 64
-                            enemy.Position.Y - 64,  // Changed from 32 to 64
-                            128, // Changed from 64 to 128
-                            128  // Changed from 64 to 128
-                        );
-                        enemy.Draw(e.Graphics, enemyRect);
+                        enemy.Draw(e.Graphics, enemy.Bounds);
 
-                        // Draw HP bar (make it wider for larger enemy)
-                        int healthBarWidth = 128;  // Changed from 64 to 128
-                        int healthBarHeight = 8;   // Made slightly taller
+                        // Draw HP bar above enemy
+                        int healthBarWidth = 100;
+                        int healthBarHeight = 8;
                         float healthPercent = (float)enemy.CurrentHealth / enemy.MaxHealth;
                         
                         Rectangle backgroundBar = new Rectangle(
                             enemy.Position.X - healthBarWidth/2,
-                            enemy.Position.Y - 90,  // Adjusted to be above larger enemy
+                            enemy.Bounds.Top - 20,  // Position bar above enemy sprite
                             healthBarWidth,
                             healthBarHeight
                         );
@@ -743,19 +776,65 @@ namespace FormNavigation
                 }
             }
 
-            // Draw player HP bar
-            int playerHealthBarWidth = 100;
-            int playerHealthBarHeight = 10;
+            // Reset transform for UI elements (this ensures they stay fixed on screen)
+            e.Graphics.ResetTransform();
+
+            // Draw player HP bar in top right corner with screen-space coordinates
+            int hpBarX = this.ClientSize.Width - HP_BAR_WIDTH - HP_BAR_MARGIN;
+            int hpBarY = HP_BAR_MARGIN;
             float playerHealthPercent = (float)playerCurrentHealth / playerMaxHealth;
             
-            Rectangle playerBackground = new Rectangle(10, 10, playerHealthBarWidth, playerHealthBarHeight);
-            Rectangle playerHealth = new Rectangle(10, 10, (int)(playerHealthBarWidth * playerHealthPercent), playerHealthBarHeight);
-
-            using (SolidBrush redBrush = new SolidBrush(Color.Red))
-            using (SolidBrush greenBrush = new SolidBrush(Color.Green))
+            // Draw HP text
+            string hpText = $"HP: {playerCurrentHealth}/{playerMaxHealth}";
+            using (Font font = new Font("Arial", 12, FontStyle.Bold))
             {
-                e.Graphics.FillRectangle(redBrush, playerBackground);
-                e.Graphics.FillRectangle(greenBrush, playerHealth);
+                // Add shadow effect for better visibility
+                e.Graphics.DrawString(hpText, font, Brushes.Black, 
+                    new Point(hpBarX - 4, hpBarY + HP_BAR_HEIGHT + 6));
+                e.Graphics.DrawString(hpText, font, Brushes.White, 
+                    new Point(hpBarX - 5, hpBarY + HP_BAR_HEIGHT + 5));
+            }
+
+            // Background (empty health bar)
+            Rectangle playerBackground = new Rectangle(hpBarX, hpBarY, HP_BAR_WIDTH, HP_BAR_HEIGHT);
+            
+            // Foreground (filled health bar)
+            Rectangle playerHealth = new Rectangle(
+                hpBarX, 
+                hpBarY, 
+                (int)(HP_BAR_WIDTH * playerHealthPercent), 
+                HP_BAR_HEIGHT
+            );
+
+            // Draw fancy HP bar with border and gradient
+            using (LinearGradientBrush greenGradient = new LinearGradientBrush(
+                    playerHealth, 
+                    Color.LightGreen, 
+                    Color.DarkGreen, 
+                    LinearGradientMode.Vertical))
+            using (LinearGradientBrush redGradient = new LinearGradientBrush(
+                    playerBackground, 
+                    Color.DarkRed, 
+                    Color.Red, 
+                    LinearGradientMode.Vertical))
+            using (Pen borderPen = new Pen(Color.Black, 2))
+            {
+                // Draw shadow
+                using (SolidBrush shadowBrush = new SolidBrush(Color.FromArgb(100, 0, 0, 0)))
+                {
+                    e.Graphics.FillRectangle(shadowBrush, 
+                        new Rectangle(playerBackground.X + 2, playerBackground.Y + 2, 
+                                    playerBackground.Width, playerBackground.Height));
+                }
+
+                // Draw background (red part)
+                e.Graphics.FillRectangle(redGradient, playerBackground);
+                
+                // Draw health (green part)
+                e.Graphics.FillRectangle(greenGradient, playerHealth);
+                
+                // Draw border
+                e.Graphics.DrawRectangle(borderPen, playerBackground);
             }
         }
 
@@ -1013,18 +1092,17 @@ namespace FormNavigation
 
         private void InitializePlayerStats()
         {
-            // Set stats based on character
+            // Increase health values significantly
             (playerMaxHealth, playerAttack, playerSpeed) = GameState.SelectedCharacter switch
             {
-                "Ninja" => (100, 20, 12),
-                "Puppeteer" => (85, 25, 10),
-                "Samurai" => (120, 30, 8),
-                "Scarecrow" => (90, 22, 11),
-                "Shaman" => (80, 35, 9),
-                _ => (100, 20, 10)
+                "Ninja" => (200, 20, 12),      // Fast but medium health
+                "Puppeteer" => (175, 25, 10),  // Medium health and speed
+                "Samurai" => (250, 30, 8),     // High health but slower
+                "Scarecrow" => (180, 22, 11),  // Balanced stats
+                "Shaman" => (160, 35, 9),      // Lower health but high attack
+                _ => (200, 20, 10)
             };
             playerCurrentHealth = playerMaxHealth;
-            playerSpeed = (int)playerSpeed;  // This line is optional since we're already assigning integers
         }
 
         private void SpawnNewEnemy()
@@ -1095,6 +1173,14 @@ namespace FormNavigation
                     }
                 }
             }
+        }
+
+        private void GameOver()
+        {
+            gameTimer.Stop();
+            MessageBox.Show($"Game Over! Final Score: {currentScore}", "Game Over",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            this.Close();
         }
     }
 }

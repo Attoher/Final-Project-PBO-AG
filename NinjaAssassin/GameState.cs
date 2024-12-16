@@ -10,9 +10,9 @@ namespace FormNavigation
         {
             return Difficulty switch
             {
-                "Easy" => (5, 3000f, 75, 3f),       // 5 enemies, spawn every 3 sec, 75 HP, normal speed
-                "Normal" => (10, 2000f, 150, 4f),    // 10 enemies, spawn every 2 sec, 150 HP, faster
-                "Hard" => (15, 1000f, 250, 5f),      // 15 enemies, spawn every 1 sec, 250 HP, very fast
+                "Easy" => (5, 3000f, 75, 1f),       // Unchanged
+                "Normal" => (8, 2000f, 100, 2.5f),  // Slightly reduced stats
+                "Hard" => (12, 1500f, 150, 4f),     // Made more balanced
                 _ => (5, 3000f, 75, 3f)
             };
         }
