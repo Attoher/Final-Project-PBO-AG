@@ -41,3 +41,9 @@ D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-win
 D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Characters\Skills\Samurai_Skill.png
 D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Characters\Skills\Scarecrow_Skill.png
 D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Characters\Skills\Shaman_Skill.png
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Enemy\Bomb Puppet\Bomb Puppet_Attack.png
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Enemy\Bomb Puppet\Bomb Puppet_Idle.png
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Enemy\Bomb Puppet\Bomb Puppet_Walk.png
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Enemy\Slime\Slime_Attack.png
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Enemy\Slime\Slime_Idle.png
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Enemy\Slime\Slime_Walk.png

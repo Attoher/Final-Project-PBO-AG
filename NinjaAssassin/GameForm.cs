@@ -12,7 +12,6 @@ namespace FormNavigation
         private Button backButton;
         private Timer gameTimer;
         private Point playerPosition;
-        private const int PLAYER_SPEED = 10;
         private bool isWPressed, isSPressed, isAPressed, isDPressed;
         private const string CHARACTERS_PATH = "Resources/Characters";
         private Point cameraOffset;
@@ -41,7 +40,7 @@ namespace FormNavigation
         private Image bushSprite;
         private List<Rectangle> bushColliders = new List<Rectangle>();
         private const int BUSH_SIZE = 64;
-        private const int NUM_BUSHES = 25; // Jumlah bush yang akan di-spawn
+        private const int NUM_BUSHES = 35; // Jumlah bush yang akan di-spawn
         private SpriteAnimation playerIdleAnimation;
         private SpriteAnimation playerRunAnimation;
         private const string CHARACTERS_RUN_PATH = "Resources/Characters/Run";
@@ -61,6 +60,13 @@ namespace FormNavigation
         private int skillRepetitionsRequired;
         private int currentSkillRepetition;
         private int skillFrameCount;
+        private const string ENEMY_PATH = "Resources/Enemy";
+        private List<Enemy> enemies = new List<Enemy>();
+        private int playerMaxHealth;
+        private int playerCurrentHealth;
+        private int playerAttack;
+        private float playerSpeed;  // Keep only this one
+        private const int BULLET_DAMAGE = 25;
 
         private class Bullet
         {
@@ -69,10 +75,12 @@ namespace FormNavigation
             public float VelocityX { get; set; }
             public float VelocityY { get; set; }
             public bool IsActive { get; set; } = true;
+            public int Damage { get; set; }
         }
 
         public GameForm()
         {
+            InitializePlayerStats();
             InitializeForm();
             InitializeControls();
             InitializeGame();
@@ -162,6 +170,9 @@ namespace FormNavigation
                 {
                     MessageBox.Show($"Error loading sprites: {ex.Message}");
                 }
+
+                // Add enemy initialization
+                LoadEnemies();
 
                 // Start game loop
                 gameTimer.Start();
@@ -341,8 +352,8 @@ namespace FormNavigation
 
             // Apply movement speed
             Point newPosition = new Point(
-                playerPosition.X + (int)(moveX * PLAYER_SPEED),
-                playerPosition.Y + (int)(moveY * PLAYER_SPEED)
+                playerPosition.X + (int)(moveX * playerSpeed),
+                playerPosition.Y + (int)(moveY * playerSpeed)
             );
 
             // Hanya update posisi jika tidak bertabrakan dengan bush
@@ -368,6 +379,34 @@ namespace FormNavigation
                     bullet.Y < 0 || bullet.Y > WORLD_HEIGHT)
                 {
                     bullets.RemoveAt(i);
+                }
+            }
+
+            // Check bullet collisions with enemies
+            for (int i = bullets.Count - 1; i >= 0; i--)
+            {
+                var bullet = bullets[i];
+                Rectangle bulletRect = new Rectangle(
+                    (int)bullet.X - BULLET_SIZE/2,
+                    (int)bullet.Y - BULLET_SIZE/2,
+                    BULLET_SIZE,
+                    BULLET_SIZE
+                );
+
+                for (int j = enemies.Count - 1; j >= 0; j--)
+                {
+                    var enemy = enemies[j];
+                    if (enemy.IsActive && bulletRect.IntersectsWith(enemy.Bounds))
+                    {
+                        // Enemy hit by bullet
+                        if (enemy.TakeDamage(BULLET_DAMAGE))
+                        {
+                            // Enemy died
+                            enemies.RemoveAt(j);
+                        }
+                        bullets.RemoveAt(i);
+                        break;
+                    }
                 }
             }
 
@@ -627,6 +666,47 @@ namespace FormNavigation
                     }
                 }
 
+                // Add this before bullets drawing, after player drawing
+                foreach (var enemy in enemies)
+                {
+                    if (enemy.IsActive)
+                    {
+                        Rectangle enemyRect = new Rectangle(
+                            enemy.Position.X - 64,  // Changed from 32 to 64
+                            enemy.Position.Y - 64,  // Changed from 32 to 64
+                            128, // Changed from 64 to 128
+                            128  // Changed from 64 to 128
+                        );
+                        enemy.Draw(e.Graphics, enemyRect);
+
+                        // Draw HP bar (make it wider for larger enemy)
+                        int healthBarWidth = 128;  // Changed from 64 to 128
+                        int healthBarHeight = 8;   // Made slightly taller
+                        float healthPercent = (float)enemy.CurrentHealth / enemy.MaxHealth;
+                        
+                        Rectangle backgroundBar = new Rectangle(
+                            enemy.Position.X - healthBarWidth/2,
+                            enemy.Position.Y - 90,  // Adjusted to be above larger enemy
+                            healthBarWidth,
+                            healthBarHeight
+                        );
+                        
+                        Rectangle healthBar = new Rectangle(
+                            backgroundBar.X,
+                            backgroundBar.Y,
+                            (int)(healthBarWidth * healthPercent),
+                            healthBarHeight
+                        );
+
+                        using (SolidBrush redBrush = new SolidBrush(Color.Red))
+                        using (SolidBrush greenBrush = new SolidBrush(Color.Green))
+                        {
+                            e.Graphics.FillRectangle(redBrush, backgroundBar);
+                            e.Graphics.FillRectangle(greenBrush, healthBar);
+                        }
+                    }
+                }
+
                 // Draw bullets after everything else
                 using (SolidBrush bulletBrush = new SolidBrush(Color.Yellow))
                 {
@@ -639,6 +719,21 @@ namespace FormNavigation
                             BULLET_SIZE);
                     }
                 }
+            }
+
+            // Draw player HP bar
+            int playerHealthBarWidth = 100;
+            int playerHealthBarHeight = 10;
+            float playerHealthPercent = (float)playerCurrentHealth / playerMaxHealth;
+            
+            Rectangle playerBackground = new Rectangle(10, 10, playerHealthBarWidth, playerHealthBarHeight);
+            Rectangle playerHealth = new Rectangle(10, 10, (int)(playerHealthBarWidth * playerHealthPercent), playerHealthBarHeight);
+
+            using (SolidBrush redBrush = new SolidBrush(Color.Red))
+            using (SolidBrush greenBrush = new SolidBrush(Color.Green))
+            {
+                e.Graphics.FillRectangle(redBrush, playerBackground);
+                e.Graphics.FillRectangle(greenBrush, playerHealth);
             }
         }
 
@@ -743,7 +838,8 @@ namespace FormNavigation
                     X = bulletStartX,
                     Y = bulletStartY,
                     VelocityX = velocityX,
-                    VelocityY = velocityY
+                    VelocityY = velocityY,
+                    Damage = BULLET_DAMAGE
                 });
             }
         }
@@ -768,6 +864,10 @@ namespace FormNavigation
                 }
             }
             bushSprite?.Dispose();
+            foreach (var enemy in enemies)
+            {
+                enemy?.Dispose();
+            }
         }
 
         private void BackButton_Click(object sender, EventArgs e)
@@ -842,6 +942,65 @@ namespace FormNavigation
                     }
                 }
             }
+        }
+
+        private void LoadEnemies()
+        {
+            try
+            {
+                // Enemy configuration - frames and dimensions for each type
+                var enemyConfigs = new Dictionary<string, (int width, int height, int idleFrames, int walkFrames, int attackFrames)>
+                {
+                    {"Slime", (64, 64, 6, 6, 15)},
+                    {"Bomb Puppet", (50, 50, 8, 8, 20)}
+                };
+
+                foreach (var enemyType in enemyConfigs.Keys)
+                {
+                    string basePath = Path.Combine(ENEMY_PATH, enemyType);  // Removed AppDomain.CurrentDomain.BaseDirectory
+                    var config = enemyConfigs[enemyType];
+
+                    var idleAnim = new SpriteAnimation(
+                        Image.FromFile(Path.Combine(basePath, $"{enemyType}_Idle.png")),
+                        config.width, config.height, config.idleFrames, 100);
+
+                    var walkAnim = new SpriteAnimation(
+                        Image.FromFile(Path.Combine(basePath, $"{enemyType}_Walk.png")),
+                        config.width, config.height, config.walkFrames, 100);
+
+                    var attackAnim = new SpriteAnimation(
+                        Image.FromFile(Path.Combine(basePath, $"{enemyType}_Attack.png")),
+                        config.width, config.height, config.attackFrames, 100);
+
+                    // Create enemy at random position
+                    Point randomPos = new Point(
+                        random.Next(WORLD_WIDTH),
+                        random.Next(WORLD_HEIGHT)
+                    );
+
+                    enemies.Add(new Enemy(enemyType, randomPos, idleAnim, walkAnim, attackAnim));
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error loading enemy sprites: {ex.Message}", ex);
+            }
+        }
+
+        private void InitializePlayerStats()
+        {
+            // Set stats based on character
+            (playerMaxHealth, playerAttack, playerSpeed) = GameState.SelectedCharacter switch
+            {
+                "Ninja" => (100, 20, 12),
+                "Puppeteer" => (85, 25, 10),
+                "Samurai" => (120, 30, 8),
+                "Scarecrow" => (90, 22, 11),
+                "Shaman" => (80, 35, 9),
+                _ => (100, 20, 10)
+            };
+            playerCurrentHealth = playerMaxHealth;
+            playerSpeed = (int)playerSpeed;  // This line is optional since we're already assigning integers
         }
     }
 }
