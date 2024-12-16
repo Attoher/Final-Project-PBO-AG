@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("NinjaAssassin")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b9d2249c25b524848850a8eb6055974775bbd334")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0dcd07e9450634feef9e663fb0f16a85adf68c84")]
 [assembly: System.Reflection.AssemblyProductAttribute("NinjaAssassin")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NinjaAssassin")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -100,6 +100,9 @@ namespace FormNavigation
             public int Damage { get; set; }
         }
 
+        // Add field to track mouse world position for skills
+        private Point skillTargetPosition;
+
         public GameForm()
         {
             difficultySettings = GameState.GetDifficultySettings();
@@ -851,6 +854,12 @@ namespace FormNavigation
                     TimeSpan timeSinceLastSkill = DateTime.Now - lastSkillTime;
                     if (!isSkillActive && skillCompleted && timeSinceLastSkill.TotalMilliseconds >= SKILL_COOLDOWN)
                     {
+                        if (GameState.SelectedCharacter == "Ninja")
+                        {
+                            // Execute teleport for Ninja
+                            ExecuteNinjaTeleport();
+                        }
+                        
                         isSkillActive = true;
                         skillCompleted = false;
                         currentSkillRepetition = 0;
@@ -880,6 +889,9 @@ namespace FormNavigation
                 e.Location.X + cameraOffset.X,
                 e.Location.Y + cameraOffset.Y
             );
+
+            // Store target position for skills
+            skillTargetPosition = newMouseWorldPos;
 
             // Only update facing direction if mouse has actually moved
             if (newMouseWorldPos != lastMouseWorldPos)
@@ -1181,6 +1193,25 @@ namespace FormNavigation
             MessageBox.Show($"Game Over! Final Score: {currentScore}", "Game Over",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
             this.Close();
+        }
+
+        private void ExecuteNinjaTeleport()
+        {
+            // Check if target position is within bounds and not colliding with obstacles
+            Point targetPos = new Point(
+                Math.Max(STANDARD_WIDTH/2, Math.Min(skillTargetPosition.X, WORLD_WIDTH - STANDARD_WIDTH/2)),
+                Math.Max(STANDARD_WIDTH/2, Math.Min(skillTargetPosition.Y, WORLD_HEIGHT - STANDARD_WIDTH/2))
+            );
+
+            // Check for bush collisions at target position
+            if (!CheckBushCollision(targetPos))
+            {
+                // Teleport to target position
+                playerPosition = targetPos;
+                
+                // Update camera immediately to prevent visual lag
+                UpdateCameraPosition();
+            }
         }
     }
 }
