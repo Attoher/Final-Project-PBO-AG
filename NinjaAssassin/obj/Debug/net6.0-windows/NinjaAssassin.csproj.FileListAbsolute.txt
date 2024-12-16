@@ -36,3 +36,8 @@ D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-win
 D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Tiles\Grass3.png
 D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Weapons\Gun1.png
 D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Weapons\Gun.png
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Characters\Skills\Ninja_Skill.png
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Characters\Skills\Puppeteer_Skill.png
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Characters\Skills\Samurai_Skill.png
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Characters\Skills\Scarecrow_Skill.png
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Characters\Skills\Shaman_Skill.png

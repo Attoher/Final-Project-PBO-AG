@@ -48,6 +48,13 @@ namespace FormNavigation
         private const float BULLET_COOLDOWN = 100f; // 500ms = 0.5 seconds
         private DateTime lastBulletTime = DateTime.MinValue;
         private Bitmap tileMapBuffer; // Add this field
+        private const string CHARACTERS_SKILL_PATH = "Resources/Characters/Skills";
+        private SpriteAnimation playerSkillAnimation;
+        private bool isSkillActive = false;
+        private DateTime skillStartTime;
+        private const float SKILL_DURATION = 1000f; // 1 second skill animation
+        private Point lastMouseWorldPos;
+        private bool hasMouseMoved = false;
 
         private class Bullet
         {
@@ -168,6 +175,7 @@ namespace FormNavigation
                 string basePath = AppDomain.CurrentDomain.BaseDirectory;
                 string idleFile = Path.Combine(basePath, CHARACTERS_PATH, $"{GameState.SelectedCharacter}_Idle.png");
                 string runFile = Path.Combine(basePath, CHARACTERS_RUN_PATH, $"{GameState.SelectedCharacter}_Run.png");
+                string skillFile = Path.Combine(basePath, CHARACTERS_SKILL_PATH, $"{GameState.SelectedCharacter}_Skill.png");
 
                 if (!File.Exists(idleFile))
                 {
@@ -177,23 +185,29 @@ namespace FormNavigation
                 {
                     throw new FileNotFoundException($"Run animation not found: {runFile}");
                 }
+                if (!File.Exists(skillFile))
+                {
+                    throw new FileNotFoundException($"Skill animation not found: {skillFile}");
+                }
 
                 // Update run frames untuk masing-masing karakter
-                var (frameWidth, frameHeight, idleFrames, runFrames) = GameState.SelectedCharacter switch
+                var (frameWidth, frameHeight, idleFrames, runFrames, skillFrames) = GameState.SelectedCharacter switch
                 {
-                    "Ninja" => (25, 25, 9, 6),      // Run: 6 frames
-                    "Puppeteer" => (25, 50, 4, 4),  // Run: 4 frames
-                    "Samurai" => (50, 50, 4, 12),   // Run: 12 frames
-                    "Scarecrow" => (25, 25, 4, 4),  // Run: 4 frames
-                    "Shaman" => (25, 50, 4, 4),     // Run: 4 frames
+                    "Ninja" => (25, 25, 9, 6, 11),      // Run: 6 frames
+                    "Puppeteer" => (25, 50, 4, 4, 8),  // Run: 4 frames
+                    "Samurai" => (50, 50, 4, 12, 8),   // Run: 12 frames
+                    "Scarecrow" => (25, 25, 4, 4, 9),  // Run: 4 frames
+                    "Shaman" => (25, 50, 4, 4, 4),     // Run: 4 frames
                     _ => throw new Exception($"Invalid character: {GameState.SelectedCharacter}")
                 };
 
                 using (var idleSheet = Image.FromFile(idleFile))
                 using (var runSheet = Image.FromFile(runFile))
+                using (var skillSheet = Image.FromFile(skillFile))
                 {
                     playerIdleAnimation = new SpriteAnimation((Image)idleSheet.Clone(), frameWidth, frameHeight, idleFrames, 50);
                     playerRunAnimation = new SpriteAnimation((Image)runSheet.Clone(), frameWidth, frameHeight, runFrames, 50);
+                    playerSkillAnimation = new SpriteAnimation((Image)skillSheet.Clone(), frameWidth, frameHeight, skillFrames, 50);
                 }
 
                 playerIdleAnimation.Start();
@@ -285,8 +299,12 @@ namespace FormNavigation
             // Track if player is moving
             isMoving = isWPressed || isSPressed || isAPressed || isDPressed;
 
-            // Update facing direction based on stored mouse position
-            isFacingLeft = mouseWorldPos.X < (playerPosition.X + GetCharacterDimensions().width / 2);
+            // Update facing direction only if mouse has moved
+            if (hasMouseMoved)
+            {
+                isFacingLeft = lastMouseWorldPos.X < (playerPosition.X + GetCharacterDimensions().width / 2);
+                hasMouseMoved = false;  // Reset flag until next mouse movement
+            }
 
             // Calculate movement vector
             float moveX = 0;
@@ -334,6 +352,17 @@ namespace FormNavigation
                     bullet.Y < 0 || bullet.Y > WORLD_HEIGHT)
                 {
                     bullets.RemoveAt(i);
+                }
+            }
+
+            // Update skill state
+            if (isSkillActive)
+            {
+                TimeSpan skillElapsed = DateTime.Now - skillStartTime;
+                if (skillElapsed.TotalMilliseconds >= SKILL_DURATION)
+                {
+                    isSkillActive = false;
+                    playerSkillAnimation.Stop();
                 }
             }
 
@@ -451,14 +480,14 @@ namespace FormNavigation
                     var state = e.Graphics.Save();
                     try
                     {
-                        if (isFacingLeft)
+                        if (isSkillActive && playerSkillAnimation != null)
                         {
-                            e.Graphics.TranslateTransform(playerPosition.X, playerPosition.Y);
-                            e.Graphics.ScaleTransform(-1, 1);
-                            
-                            if (isMoving)
+                            // Draw skill animation instead of idle/run
+                            if (isFacingLeft)
                             {
-                                playerRunAnimation.DrawFrame(e.Graphics, 
+                                e.Graphics.TranslateTransform(playerPosition.X, playerPosition.Y);
+                                e.Graphics.ScaleTransform(-1, 1);
+                                playerSkillAnimation.DrawFrame(e.Graphics,
                                     new Rectangle(-scaledWidth/2, 
                                                 GameState.SelectedCharacter == "Puppeteer" ? -scaledHeight/3 : 
                                                 GameState.SelectedCharacter == "Shaman" ? -(int)(scaledHeight * 0.75) :
@@ -469,33 +498,58 @@ namespace FormNavigation
                             }
                             else
                             {
-                                playerIdleAnimation.DrawFrame(e.Graphics, 
-                                    new Rectangle(-scaledWidth/2, 
-                                                GameState.SelectedCharacter == "Shaman" ? -(int)(scaledHeight * 0.75) :
-                                                GameState.SelectedCharacter == "Samurai" ? -(int)(scaledHeight * 0.6) :
-                                                -scaledHeight/2, 
-                                                scaledWidth, 
-                                                scaledHeight));
+                                playerSkillAnimation.DrawFrame(e.Graphics,
+                                    new Rectangle(drawX, drawY, scaledWidth, scaledHeight));
                             }
                         }
                         else
                         {
-                            if (isMoving)
+                            if (isFacingLeft)
                             {
-                                playerRunAnimation.DrawFrame(e.Graphics, 
-                                    new Rectangle(drawX, drawY, scaledWidth, scaledHeight));
+                                e.Graphics.TranslateTransform(playerPosition.X, playerPosition.Y);
+                                e.Graphics.ScaleTransform(-1, 1);
+                                
+                                if (isMoving)
+                                {
+                                    playerRunAnimation.DrawFrame(e.Graphics, 
+                                        new Rectangle(-scaledWidth/2, 
+                                                    GameState.SelectedCharacter == "Puppeteer" ? -scaledHeight/3 : 
+                                                    GameState.SelectedCharacter == "Shaman" ? -(int)(scaledHeight * 0.75) :
+                                                    GameState.SelectedCharacter == "Samurai" ? -(int)(scaledHeight * 0.6) :
+                                                    -scaledHeight/2, 
+                                                    scaledWidth, 
+                                                    scaledHeight));
+                                }
+                                else
+                                {
+                                    playerIdleAnimation.DrawFrame(e.Graphics, 
+                                        new Rectangle(-scaledWidth/2, 
+                                                    GameState.SelectedCharacter == "Shaman" ? -(int)(scaledHeight * 0.75) :
+                                                    GameState.SelectedCharacter == "Samurai" ? -(int)(scaledHeight * 0.6) :
+                                                    -scaledHeight/2, 
+                                                    scaledWidth, 
+                                                    scaledHeight));
+                                }
                             }
                             else
                             {
-                                playerIdleAnimation.DrawFrame(e.Graphics, 
-                                    new Rectangle(drawX, 
-                                                GameState.SelectedCharacter == "Shaman" ? 
-                                                    playerPosition.Y - (int)(scaledHeight * 0.75) :
-                                                GameState.SelectedCharacter == "Samurai" ?
-                                                    playerPosition.Y - (int)(scaledHeight * 0.6) :
-                                                playerPosition.Y - scaledHeight/2, 
-                                                scaledWidth, 
-                                                scaledHeight));
+                                if (isMoving)
+                                {
+                                    playerRunAnimation.DrawFrame(e.Graphics, 
+                                        new Rectangle(drawX, drawY, scaledWidth, scaledHeight));
+                                }
+                                else
+                                {
+                                    playerIdleAnimation.DrawFrame(e.Graphics, 
+                                        new Rectangle(drawX, 
+                                                    GameState.SelectedCharacter == "Shaman" ? 
+                                                        playerPosition.Y - (int)(scaledHeight * 0.75) :
+                                                    GameState.SelectedCharacter == "Samurai" ?
+                                                        playerPosition.Y - (int)(scaledHeight * 0.6) :
+                                                    playerPosition.Y - scaledHeight/2, 
+                                                    scaledWidth, 
+                                                    scaledHeight));
+                                }
                             }
                         }
 
@@ -565,6 +619,14 @@ namespace FormNavigation
                 case Keys.S: isSPressed = true; break;
                 case Keys.A: isAPressed = true; break;
                 case Keys.D: isDPressed = true; break;
+                case Keys.E:
+                    if (!isSkillActive)
+                    {
+                        isSkillActive = true;
+                        skillStartTime = DateTime.Now;
+                        playerSkillAnimation.Start();
+                    }
+                    break;
             }
         }
 
@@ -581,14 +643,20 @@ namespace FormNavigation
 
         private void GameForm_MouseMove(object sender, MouseEventArgs e)
         {
-            // Store current mouse position in screen coordinates
-            currentMousePosition = e.Location;
-            
-            // Update world position
-            mouseWorldPos = new Point(
-                currentMousePosition.X + cameraOffset.X,
-                currentMousePosition.Y + cameraOffset.Y
+            Point newMouseWorldPos = new Point(
+                e.Location.X + cameraOffset.X,
+                e.Location.Y + cameraOffset.Y
             );
+
+            // Only update facing direction if mouse has actually moved
+            if (newMouseWorldPos != lastMouseWorldPos)
+            {
+                hasMouseMoved = true;
+                lastMouseWorldPos = newMouseWorldPos;
+                currentMousePosition = e.Location;
+            }
+            
+            mouseWorldPos = newMouseWorldPos;
         }
 
         private void GameForm_MouseDown(object sender, MouseEventArgs e)
@@ -653,6 +721,7 @@ namespace FormNavigation
             gameTimer?.Stop();
             playerIdleAnimation?.Dispose();
             playerRunAnimation?.Dispose();
+            playerSkillAnimation?.Dispose(); // Add skill animation disposal
             gunSprite?.Dispose();
             if (grassTiles != null)
             {
