@@ -45,8 +45,9 @@ namespace FormNavigation
         private SpriteAnimation playerIdleAnimation;
         private SpriteAnimation playerRunAnimation;
         private const string CHARACTERS_RUN_PATH = "Resources/Characters/Run";
-        private const float BULLET_COOLDOWN = 500f; // 500ms = 0.5 seconds
+        private const float BULLET_COOLDOWN = 100f; // 500ms = 0.5 seconds
         private DateTime lastBulletTime = DateTime.MinValue;
+        private Bitmap tileMapBuffer; // Add this field
 
         private class Bullet
         {
@@ -124,6 +125,7 @@ namespace FormNavigation
                 if (grassTiles != null && grassTiles.Length > 0)
                 {
                     GenerateTileMap();
+                    PreRenderTileMap(); // Add this line
                 }
 
                 // Load weapon and obstacles
@@ -343,9 +345,11 @@ namespace FormNavigation
         {
             e.Graphics.Clear(Color.Black);
 
-            // Enable smooth graphics
+            // Enable pixel-perfect rendering
             e.Graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
-            e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
+            e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            e.Graphics.CompositingQuality = CompositingQuality.AssumeLinear;
+            e.Graphics.SmoothingMode = SmoothingMode.None;
 
             // Create a translated graphics context for camera offset
             using (Matrix transform = new Matrix())
@@ -420,12 +424,20 @@ namespace FormNavigation
                     var (width, height) = GetCharacterDimensions();
                     var (scaledWidth, scaledHeight) = GetScaledDimensions();
 
-                    // Adjust drawing position for Puppeteer
+                    // Adjust drawing position for characters
                     int drawY;
                     if (GameState.SelectedCharacter == "Puppeteer")
                     {
-                        // Fine tune the offset - reduced from 1/4 to 1/3
                         drawY = playerPosition.Y - scaledHeight / 3;
+                    }
+                    else if (GameState.SelectedCharacter == "Shaman")
+                    {
+                        drawY = playerPosition.Y - (int)(scaledHeight * 0.75);
+                    }
+                    else if (GameState.SelectedCharacter == "Samurai")
+                    {
+                        // Menggeser Samurai sedikit ke atas
+                        drawY = playerPosition.Y - (int)(scaledHeight * 0.6);
                     }
                     else
                     {
@@ -448,14 +460,22 @@ namespace FormNavigation
                             {
                                 playerRunAnimation.DrawFrame(e.Graphics, 
                                     new Rectangle(-scaledWidth/2, 
-                                                GameState.SelectedCharacter == "Puppeteer" ? -scaledHeight/3 : -scaledHeight/2, 
+                                                GameState.SelectedCharacter == "Puppeteer" ? -scaledHeight/3 : 
+                                                GameState.SelectedCharacter == "Shaman" ? -(int)(scaledHeight * 0.75) :
+                                                GameState.SelectedCharacter == "Samurai" ? -(int)(scaledHeight * 0.6) :
+                                                -scaledHeight/2, 
                                                 scaledWidth, 
                                                 scaledHeight));
                             }
                             else
                             {
                                 playerIdleAnimation.DrawFrame(e.Graphics, 
-                                    new Rectangle(-scaledWidth/2, -scaledHeight/2, scaledWidth, scaledHeight));
+                                    new Rectangle(-scaledWidth/2, 
+                                                GameState.SelectedCharacter == "Shaman" ? -(int)(scaledHeight * 0.75) :
+                                                GameState.SelectedCharacter == "Samurai" ? -(int)(scaledHeight * 0.6) :
+                                                -scaledHeight/2, 
+                                                scaledWidth, 
+                                                scaledHeight));
                             }
                         }
                         else
@@ -468,7 +488,14 @@ namespace FormNavigation
                             else
                             {
                                 playerIdleAnimation.DrawFrame(e.Graphics, 
-                                    new Rectangle(drawX, playerPosition.Y - scaledHeight/2, scaledWidth, scaledHeight));
+                                    new Rectangle(drawX, 
+                                                GameState.SelectedCharacter == "Shaman" ? 
+                                                    playerPosition.Y - (int)(scaledHeight * 0.75) :
+                                                GameState.SelectedCharacter == "Samurai" ?
+                                                    playerPosition.Y - (int)(scaledHeight * 0.6) :
+                                                playerPosition.Y - scaledHeight/2, 
+                                                scaledWidth, 
+                                                scaledHeight));
                             }
                         }
 
@@ -488,22 +515,22 @@ namespace FormNavigation
 
                             int gunWidth = 70;
                             int gunHeight = 36;
+                            const int GUN_FORWARD_OFFSET = 35; // Decreased from 45 to 35 to move gun back slightly
 
                             if (isFacingLeft)
                             {
-                                // Hanya flip horizontal untuk senjata saat menghadap kiri
                                 e.Graphics.ScaleTransform(1, -1);
                                 e.Graphics.DrawImage(gunSprite,
-                                    25,
-                                    -20, // Mengubah dari positif ke negatif untuk menggerakkan ke atas
+                                    GUN_FORWARD_OFFSET,
+                                    -20,
                                     gunWidth,
                                     gunHeight);
                             }
                             else
                             {
                                 e.Graphics.DrawImage(gunSprite,
-                                    25,
-                                    -20, // Mengubah offset Y menjadi lebih besar (negatif karena tidak di-flip)
+                                    GUN_FORWARD_OFFSET,
+                                    -20,
                                     gunWidth,
                                     gunHeight);
                             }
@@ -680,6 +707,35 @@ namespace FormNavigation
                 }
             }
             return false;
+        }
+
+        private void PreRenderTileMap()
+        {
+            if (grassTiles == null) return;
+
+            tileMapBuffer = new Bitmap(WORLD_WIDTH, WORLD_HEIGHT);
+            using (Graphics g = Graphics.FromImage(tileMapBuffer))
+            {
+                // Set pixel-perfect rendering for tiles
+                g.InterpolationMode = InterpolationMode.NearestNeighbor;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.CompositingQuality = CompositingQuality.AssumeLinear;
+                g.SmoothingMode = SmoothingMode.None;
+
+                // Draw all tiles
+                for (int x = 0; x < tileMap.GetLength(0); x++)
+                {
+                    for (int y = 0; y < tileMap.GetLength(1); y++)
+                    {
+                        int tileIndex = tileMap[x, y];
+                        g.DrawImage(grassTiles[tileIndex],
+                            x * TILE_SIZE,
+                            y * TILE_SIZE,
+                            TILE_SIZE,
+                            TILE_SIZE);
+                    }
+                }
+            }
         }
     }
 }

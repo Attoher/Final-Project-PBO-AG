@@ -35,3 +35,4 @@ D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-win
 D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Tiles\Grass2.png
 D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Tiles\Grass3.png
 D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Weapons\Gun1.png
+D:\ATHA ITS\coding\C#\FP\Final-Project-PBO-AG\NinjaAssassin\bin\Debug\net6.0-windows\Resources\Weapons\Gun.png

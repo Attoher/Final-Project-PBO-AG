@@ -46,9 +46,10 @@ namespace FormNavigation
 
         public void DrawFrame(Graphics g, Rectangle destRect)
         {
-            // Set high quality rendering modes
+            // Set pixel-perfect rendering modes
             g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
-            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
+            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+            g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.AssumeLinear;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
 
             g.DrawImage(spriteSheet, destRect, sourceRect, GraphicsUnit.Pixel);
