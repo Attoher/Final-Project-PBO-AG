@@ -20,7 +20,8 @@ namespace FormNavigation
         public Rectangle Bounds => new Rectangle(Position.X - ENEMY_SIZE/2, Position.Y - ENEMY_SIZE/2, ENEMY_SIZE, ENEMY_SIZE);
         private bool isFacingLeft = false;
 
-        public Enemy(string type, Point position, SpriteAnimation idle, SpriteAnimation walk, SpriteAnimation attack)
+        public Enemy(string type, Point position, SpriteAnimation idle, SpriteAnimation walk, SpriteAnimation attack, 
+                    int health, float speed)
         {
             Type = type;
             Position = position;
@@ -28,17 +29,11 @@ namespace FormNavigation
             WalkAnimation = walk;
             AttackAnimation = attack;
             
-            // Start idle animation by default
+            MaxHealth = health;
+            CurrentHealth = health;
+            Speed = speed;
+            
             IdleAnimation.Start();
-
-            // Initialize stats based on enemy type
-            (MaxHealth, Attack, Speed) = Type switch
-            {
-                "Slime" => (50, 10, 3.0f),
-                "Bomb Puppet" => (75, 15, 2.0f),
-                _ => (50, 10, 3.0f)
-            };
-            CurrentHealth = MaxHealth;
         }
 
         public void Update()

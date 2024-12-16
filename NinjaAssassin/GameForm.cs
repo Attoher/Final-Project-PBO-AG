@@ -67,6 +67,19 @@ namespace FormNavigation
         private int playerAttack;
         private float playerSpeed;  // Keep only this one
         private const int BULLET_DAMAGE = 25;
+        private DateTime lastEnemySpawnTime = DateTime.MinValue;
+        private Label scoreLabel;
+        private int currentScore = 0;
+        private (int maxEnemies, float spawnInterval, int enemyHealth, float enemySpeed) difficultySettings;
+        private readonly Dictionary<string, (int width, int height, int idleFrames, int walkFrames, int attackFrames)> enemyConfigs = 
+            new Dictionary<string, (int width, int height, int idleFrames, int walkFrames, int attackFrames)>
+        {
+            {"Slime", (64, 64, 6, 6, 15)},
+            {"Bomb Puppet", (50, 50, 8, 8, 20)}
+        };
+
+        private int skillInterval;
+        private float skillDuration;
 
         private class Bullet
         {
@@ -80,6 +93,7 @@ namespace FormNavigation
 
         public GameForm()
         {
+            difficultySettings = GameState.GetDifficultySettings();
             InitializePlayerStats();
             InitializeForm();
             InitializeControls();
@@ -115,6 +129,19 @@ namespace FormNavigation
             };
             backButton.Click += BackButton_Click;
             this.Controls.Add(backButton);
+
+            // Add score label
+            scoreLabel = new Label
+            {
+                Text = "Score: 0",
+                Font = new Font("Arial", 14, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(128, 0, 0, 0),
+                AutoSize = true,
+                Location = new Point(100, 10)
+            };
+            this.Controls.Add(scoreLabel);
+            scoreLabel.BringToFront();
         }
 
         private void InitializeGame()
@@ -218,15 +245,18 @@ namespace FormNavigation
                     _ => throw new Exception($"Invalid character: {GameState.SelectedCharacter}")
                 };
 
-                (skillFrameCount, skillRepetitionsRequired) = GameState.SelectedCharacter switch
+                (skillFrameCount, skillRepetitionsRequired, skillInterval) = GameState.SelectedCharacter switch
                 {
-                    "Ninja" => (11, 1),      // 11 frames, 1 time
-                    "Puppeteer" => (8, 2),   // 8 frames, 2 times
-                    "Samurai" => (8, 1),     // 8 frames, 1 time
-                    "Scarecrow" => (9, 1),   // 9 frames, 1 time
-                    "Shaman" => (4, 3),      // 4 frames, 3 times
+                    "Ninja" => (11, 1, 50),      // 11 frames, 1x, fast animation (50ms per frame)
+                    "Puppeteer" => (8, 2, 80),   // 8 frames, 2x, medium animation (80ms per frame)
+                    "Samurai" => (8, 1, 100),    // 8 frames, 1x, slower animation (100ms per frame)
+                    "Scarecrow" => (9, 1, 70),   // 9 frames, 1x, medium-fast animation (70ms per frame)
+                    "Shaman" => (4, 3, 150),     // 4 frames, 3x, slow animation (150ms per frame)
                     _ => throw new Exception($"Invalid character: {GameState.SelectedCharacter}")
                 };
+
+                // Hitung total durasi skill berdasarkan frames dan interval
+                skillDuration = skillFrameCount * skillInterval;
 
                 using (var idleSheet = Image.FromFile(idleFile))
                 using (var runSheet = Image.FromFile(runFile))
@@ -234,7 +264,7 @@ namespace FormNavigation
                 {
                     playerIdleAnimation = new SpriteAnimation((Image)idleSheet.Clone(), frameWidth, frameHeight, idleFrames, 50);
                     playerRunAnimation = new SpriteAnimation((Image)runSheet.Clone(), frameWidth, frameHeight, runFrames, 50);
-                    playerSkillAnimation = new SpriteAnimation((Image)skillSheet.Clone(), frameWidth, frameHeight, skillFrames, 50);
+                    playerSkillAnimation = new SpriteAnimation((Image)skillSheet.Clone(), frameWidth, frameHeight, skillFrames, skillInterval);
                 }
 
                 playerIdleAnimation.Start();
@@ -383,41 +413,15 @@ namespace FormNavigation
             }
 
             // Check bullet collisions with enemies
-            for (int i = bullets.Count - 1; i >= 0; i--)
-            {
-                var bullet = bullets[i];
-                Rectangle bulletRect = new Rectangle(
-                    (int)bullet.X - BULLET_SIZE/2,
-                    (int)bullet.Y - BULLET_SIZE/2,
-                    BULLET_SIZE,
-                    BULLET_SIZE
-                );
+            HandleBulletCollisions();
 
-                for (int j = enemies.Count - 1; j >= 0; j--)
-                {
-                    var enemy = enemies[j];
-                    if (enemy.IsActive && bulletRect.IntersectsWith(enemy.Bounds))
-                    {
-                        // Enemy hit by bullet
-                        if (enemy.TakeDamage(BULLET_DAMAGE))
-                        {
-                            // Enemy died
-                            enemies.RemoveAt(j);
-                        }
-                        bullets.RemoveAt(i);
-                        break;
-                    }
-                }
-            }
-
-            // Update skill state
+            // Update skill state dengan timing yang tepat
             if (isSkillActive)
             {
                 TimeSpan skillElapsed = DateTime.Now - skillStartTime;
-                float frameTime = SKILL_DURATION / skillFrameCount;
-                int currentFrame = (int)(skillElapsed.TotalMilliseconds / frameTime) % skillFrameCount;
-
-                if (currentFrame == 0 && skillElapsed.TotalMilliseconds >= SKILL_DURATION)
+                
+                // Check if current repetition is complete
+                if (skillElapsed.TotalMilliseconds >= skillDuration)
                 {
                     currentSkillRepetition++;
                     if (currentSkillRepetition >= skillRepetitionsRequired)
@@ -430,7 +434,6 @@ namespace FormNavigation
                     {
                         // Reset for next repetition
                         skillStartTime = DateTime.Now;
-                        playerSkillAnimation?.Stop();
                         playerSkillAnimation?.Start();
                     }
                 }
@@ -444,6 +447,15 @@ namespace FormNavigation
                     enemy.MoveTowardsPlayer(playerPosition);
                     enemy.Update();
                 }
+            }
+
+            // Check if we should spawn a new enemy
+            TimeSpan timeSinceLastSpawn = DateTime.Now - lastEnemySpawnTime;
+            if (timeSinceLastSpawn.TotalMilliseconds >= difficultySettings.spawnInterval && 
+                enemies.Count < difficultySettings.maxEnemies)
+            {
+                SpawnNewEnemy();
+                lastEnemySpawnTime = DateTime.Now;
             }
 
             UpdateCameraPosition();
@@ -958,16 +970,9 @@ namespace FormNavigation
         {
             try
             {
-                // Enemy configuration - frames and dimensions for each type
-                var enemyConfigs = new Dictionary<string, (int width, int height, int idleFrames, int walkFrames, int attackFrames)>
-                {
-                    {"Slime", (64, 64, 6, 6, 15)},
-                    {"Bomb Puppet", (50, 50, 8, 8, 20)}
-                };
-
                 foreach (var enemyType in enemyConfigs.Keys)
                 {
-                    string basePath = Path.Combine(ENEMY_PATH, enemyType);  // Removed AppDomain.CurrentDomain.BaseDirectory
+                    string basePath = Path.Combine(ENEMY_PATH, enemyType);
                     var config = enemyConfigs[enemyType];
 
                     var idleAnim = new SpriteAnimation(
@@ -988,7 +993,16 @@ namespace FormNavigation
                         random.Next(WORLD_HEIGHT)
                     );
 
-                    enemies.Add(new Enemy(enemyType, randomPos, idleAnim, walkAnim, attackAnim));
+                    // Add health and speed parameters
+                    enemies.Add(new Enemy(
+                        enemyType, 
+                        randomPos, 
+                        idleAnim, 
+                        walkAnim, 
+                        attackAnim,
+                        difficultySettings.enemyHealth,
+                        difficultySettings.enemySpeed
+                    ));
                 }
             }
             catch (Exception ex)
@@ -1011,6 +1025,76 @@ namespace FormNavigation
             };
             playerCurrentHealth = playerMaxHealth;
             playerSpeed = (int)playerSpeed;  // This line is optional since we're already assigning integers
+        }
+
+        private void SpawnNewEnemy()
+        {
+            // Spawn enemy at random edge of the screen
+            Point spawnPos;
+            int edge = random.Next(4);
+            
+            switch (edge)
+            {
+                case 0: // Top
+                    spawnPos = new Point(random.Next(WORLD_WIDTH), 0);
+                    break;
+                case 1: // Right
+                    spawnPos = new Point(WORLD_WIDTH, random.Next(WORLD_HEIGHT));
+                    break;
+                case 2: // Bottom
+                    spawnPos = new Point(random.Next(WORLD_WIDTH), WORLD_HEIGHT);
+                    break;
+                default: // Left
+                    spawnPos = new Point(0, random.Next(WORLD_HEIGHT));
+                    break;
+            }
+
+            string[] enemyTypes = { "Slime", "Bomb Puppet" };
+            string enemyType = enemyTypes[random.Next(enemyTypes.Length)];
+            
+            var config = enemyConfigs[enemyType];
+            var enemy = new Enemy(
+                enemyType,
+                spawnPos,
+                new SpriteAnimation(Image.FromFile(Path.Combine(ENEMY_PATH, enemyType, $"{enemyType}_Idle.png")), config.width, config.height, config.idleFrames, 100),
+                new SpriteAnimation(Image.FromFile(Path.Combine(ENEMY_PATH, enemyType, $"{enemyType}_Walk.png")), config.width, config.height, config.walkFrames, 100),
+                new SpriteAnimation(Image.FromFile(Path.Combine(ENEMY_PATH, enemyType, $"{enemyType}_Attack.png")), config.width, config.height, config.attackFrames, 100),
+                difficultySettings.enemyHealth,
+                difficultySettings.enemySpeed
+            );
+
+            enemies.Add(enemy);
+        }
+
+        private void HandleBulletCollisions()
+        {
+            for (int i = bullets.Count - 1; i >= 0; i--)
+            {
+                var bullet = bullets[i];
+                Rectangle bulletRect = new Rectangle(
+                    (int)bullet.X - BULLET_SIZE/2,
+                    (int)bullet.Y - BULLET_SIZE/2,
+                    BULLET_SIZE,
+                    BULLET_SIZE
+                );
+
+                for (int j = enemies.Count - 1; j >= 0; j--)
+                {
+                    var enemy = enemies[j];
+                    if (enemy.IsActive && bulletRect.IntersectsWith(enemy.Bounds))
+                    {
+                        if (enemy.TakeDamage(BULLET_DAMAGE))
+                        {
+                            // Enemy died, increase score
+                            currentScore += enemy.Type == "Slime" ? 100 : 150;
+                            scoreLabel.Text = $"Score: {currentScore}";
+                            enemies.RemoveAt(j);
+                        }
+                        bullets.RemoveAt(i);
+                        break;
+                    }
+                }
+            }
         }
     }
 }
