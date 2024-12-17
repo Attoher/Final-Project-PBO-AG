@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using System.Drawing.Drawing2D;
 using System.Collections.Generic;
 using System.IO; // Tambahkan ini untuk Path, File, dan Directory
+using FormNavigation.Characters;  // Add this using directive
 
 namespace FormNavigation
 {
@@ -27,9 +28,6 @@ namespace FormNavigation
         private Point lastMousePosition;
         private Point mouseWorldPos; // Add this field
         private const string WEAPONS_PATH = "Resources/Weapons";
-        private Image gunSprite;
-        private const int GUN_OFFSET_X = 30; // Adjust these values to position the gun
-        private const int GUN_OFFSET_Y = 20;
         private Point currentMousePosition;  // Add this field
         private List<Bullet> bullets = new List<Bullet>();
         private const float BULLET_SPEED = 20f; // Slightly reduced speed for larger bullets
@@ -91,18 +89,9 @@ namespace FormNavigation
         private const int HP_BAR_HEIGHT = 20;
         private const int HP_BAR_MARGIN = 10;
 
-        private class Bullet
-        {
-            public float X { get; set; }
-            public float Y { get; set; }
-            public float VelocityX { get; set; }
-            public float VelocityY { get; set; }
-            public bool IsActive { get; set; } = true;
-            public int Damage { get; set; }
-        }
-
         // Add field to track mouse world position for skills
         private Point skillTargetPosition;
+        private IWeapon currentWeapon;
 
         public GameForm()
         {
@@ -197,19 +186,16 @@ namespace FormNavigation
                 // Load weapon and obstacles
                 try
                 {
-                    string weaponPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, WEAPONS_PATH, "Gun1.png");
                     string bushPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, BUSH_PATH, "Bush.png");
-
-                    if (File.Exists(weaponPath))
-                    {
-                        gunSprite = Image.FromFile(weaponPath);
-                    }
 
                     if (File.Exists(bushPath))
                     {
                         bushSprite = Image.FromFile(bushPath);
                         GenerateRandomBushes();
                     }
+                    
+                    // Initialize weapon
+                    currentWeapon = new Gun();
                 }
                 catch (Exception ex)
                 {
@@ -222,6 +208,7 @@ namespace FormNavigation
                 // Start game loop
                 gameTimer.Start();
                 this.Paint += GameForm_Paint;
+                currentWeapon = new Gun();
             }
             catch (Exception ex)
             {
@@ -697,38 +684,11 @@ namespace FormNavigation
                         state = e.Graphics.Save();
 
                         // Draw weapon separately
-                        if (gunSprite != null)
-                        {
-                            float gunAngle = (float)Math.Atan2(
-                                (currentMousePosition.Y + cameraOffset.Y) - playerCenterY,
-                                (currentMousePosition.X + cameraOffset.X) - playerCenterX
-                            );
-
-                            e.Graphics.TranslateTransform(playerCenterX, playerCenterY);
-                            e.Graphics.RotateTransform((float)(gunAngle * 180 / Math.PI));
-
-                            int gunWidth = 70;
-                            int gunHeight = 36;
-                            const int GUN_FORWARD_OFFSET = 35; // Decreased from 45 to 35 to move gun back slightly
-
-                            if (isFacingLeft)
-                            {
-                                e.Graphics.ScaleTransform(1, -1);
-                                e.Graphics.DrawImage(gunSprite,
-                                    GUN_FORWARD_OFFSET,
-                                    -20,
-                                    gunWidth,
-                                    gunHeight);
-                            }
-                            else
-                            {
-                                e.Graphics.DrawImage(gunSprite,
-                                    GUN_FORWARD_OFFSET,
-                                    -20,
-                                    gunWidth,
-                                    gunHeight);
-                            }
-                        }
+                        float angle = (float)Math.Atan2(
+                            (currentMousePosition.Y + cameraOffset.Y) - playerCenterY,
+                            (currentMousePosition.X + cameraOffset.X) - playerCenterX
+                        );
+                        currentWeapon?.Draw(e.Graphics, new Point(playerCenterX, playerCenterY), angle, isFacingLeft);
                     }
                     finally
                     {
@@ -914,52 +874,20 @@ namespace FormNavigation
         {
             if (e.Button == MouseButtons.Left)
             {
-                // Check cooldown
                 TimeSpan timeSinceLastBullet = DateTime.Now - lastBulletTime;
-                if (timeSinceLastBullet.TotalMilliseconds < BULLET_COOLDOWN)
+                if (timeSinceLastBullet.TotalMilliseconds < currentWeapon.GetAttack().GetCooldown())
                 {
-                    return; // Still in cooldown, don't shoot
+                    return;
                 }
 
-                // Update last bullet time
                 lastBulletTime = DateTime.Now;
-
-                int playerCenterX = playerPosition.X;
-                int playerCenterY = playerPosition.Y;
                 
-                float angle = (float)Math.Atan2(
-                    (currentMousePosition.Y + cameraOffset.Y) - playerCenterY,
-                    (currentMousePosition.X + cameraOffset.X) - playerCenterX
+                Point targetPos = new Point(
+                    currentMousePosition.X + cameraOffset.X,
+                    currentMousePosition.Y + cameraOffset.Y
                 );
-
-                // Calculate bullet velocity
-                float velocityX = (float)Math.Cos(angle) * BULLET_SPEED;
-                float velocityY = (float)Math.Sin(angle) * BULLET_SPEED;
-
-                // Calculate bullet spawn position
-                int gunOffsetX = 95; // Distance from center to gun tip
-                float bulletStartX, bulletStartY;
-
-                if (isFacingLeft)
-                {
-                    // When facing left, reverse the angle but keep same spawn distance
-                    bulletStartX = playerCenterX + (gunOffsetX * (float)Math.Cos(angle));
-                    bulletStartY = playerCenterY + (gunOffsetX * (float)Math.Sin(angle));
-                }
-                else
-                {
-                    bulletStartX = playerCenterX + (gunOffsetX * (float)Math.Cos(angle));
-                    bulletStartY = playerCenterY + (gunOffsetX * (float)Math.Sin(angle));
-                }
-
-                bullets.Add(new Bullet
-                {
-                    X = bulletStartX,
-                    Y = bulletStartY,
-                    VelocityX = velocityX,
-                    VelocityY = velocityY,
-                    Damage = BULLET_DAMAGE
-                });
+                
+                currentWeapon.GetAttack().PerformAttack(playerPosition, targetPos, bullets);
             }
         }
 
@@ -974,7 +902,6 @@ namespace FormNavigation
             playerIdleAnimation?.Dispose();
             playerRunAnimation?.Dispose();
             playerSkillAnimation?.Dispose(); // Add skill animation disposal
-            gunSprite?.Dispose();
             if (grassTiles != null)
             {
                 foreach (var tile in grassTiles)
@@ -987,6 +914,7 @@ namespace FormNavigation
             {
                 enemy?.Dispose();
             }
+            (currentWeapon as IDisposable)?.Dispose();
         }
 
         private void BackButton_Click(object sender, EventArgs e)
