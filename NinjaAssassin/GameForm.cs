@@ -766,45 +766,53 @@ namespace FormNavigation
             }
 
             // Background (empty health bar)
-            Rectangle playerBackground = new Rectangle(hpBarX, hpBarY, HP_BAR_WIDTH, HP_BAR_HEIGHT);
+            Rectangle playerBackground = new Rectangle(hpBarX, hpBarY, 
+                Math.Max(1, HP_BAR_WIDTH), Math.Max(1, HP_BAR_HEIGHT));
             
             // Foreground (filled health bar)
             Rectangle playerHealth = new Rectangle(
                 hpBarX, 
                 hpBarY, 
-                (int)(HP_BAR_WIDTH * playerHealthPercent), 
-                HP_BAR_HEIGHT
+                Math.Max(1, (int)(HP_BAR_WIDTH * playerHealthPercent)), 
+                Math.Max(1, HP_BAR_HEIGHT)
             );
 
             // Draw fancy HP bar with border and gradient
-            using (LinearGradientBrush greenGradient = new LinearGradientBrush(
-                    playerHealth, 
-                    Color.LightGreen, 
-                    Color.DarkGreen, 
-                    LinearGradientMode.Vertical))
-            using (LinearGradientBrush redGradient = new LinearGradientBrush(
-                    playerBackground, 
-                    Color.DarkRed, 
-                    Color.Red, 
-                    LinearGradientMode.Vertical))
-            using (Pen borderPen = new Pen(Color.Black, 2))
+            if (playerHealth.Width > 0 && playerHealth.Height > 0 && 
+                playerBackground.Width > 0 && playerBackground.Height > 0)
             {
-                // Draw shadow
-                using (SolidBrush shadowBrush = new SolidBrush(Color.FromArgb(100, 0, 0, 0)))
+                using (LinearGradientBrush greenGradient = new LinearGradientBrush(
+                        playerHealth, 
+                        Color.LightGreen, 
+                        Color.DarkGreen, 
+                        LinearGradientMode.Vertical))
+                using (LinearGradientBrush redGradient = new LinearGradientBrush(
+                        playerBackground, 
+                        Color.DarkRed, 
+                        Color.Red, 
+                        LinearGradientMode.Vertical))
+                using (Pen borderPen = new Pen(Color.Black, 2))
                 {
-                    e.Graphics.FillRectangle(shadowBrush, 
-                        new Rectangle(playerBackground.X + 2, playerBackground.Y + 2, 
-                                    playerBackground.Width, playerBackground.Height));
-                }
+                    // Draw shadow
+                    using (SolidBrush shadowBrush = new SolidBrush(Color.FromArgb(100, 0, 0, 0)))
+                    {
+                        e.Graphics.FillRectangle(shadowBrush, 
+                            new Rectangle(playerBackground.X + 2, playerBackground.Y + 2, 
+                                        playerBackground.Width, playerBackground.Height));
+                    }
 
-                // Draw background (red part)
-                e.Graphics.FillRectangle(redGradient, playerBackground);
-                
-                // Draw health (green part)
-                e.Graphics.FillRectangle(greenGradient, playerHealth);
-                
-                // Draw border
-                e.Graphics.DrawRectangle(borderPen, playerBackground);
+                    // Draw background (red part)
+                    e.Graphics.FillRectangle(redGradient, playerBackground);
+                    
+                    // Draw health (green part)
+                    if (playerHealth.Width > 0)
+                    {
+                        e.Graphics.FillRectangle(greenGradient, playerHealth);
+                    }
+                    
+                    // Draw border
+                    e.Graphics.DrawRectangle(borderPen, playerBackground);
+                }
             }
         }
 

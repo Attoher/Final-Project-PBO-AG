@@ -1,2 +1,5 @@
+Player 1,700
+bintang3,250
 NopL,150
 Alden,100
+Player,0
