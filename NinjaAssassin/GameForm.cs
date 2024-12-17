@@ -5,6 +5,7 @@ using System.Drawing.Drawing2D;
 using System.Collections.Generic;
 using System.IO; // Tambahkan ini untuk Path, File, dan Directory
 using FormNavigation.Characters;  // Add this using directive
+using FormNavigation.HighScore;
 
 namespace FormNavigation
 {
@@ -1124,8 +1125,26 @@ namespace FormNavigation
         private void GameOver()
         {
             gameTimer.Stop();
+            
+            string playerName = Microsoft.VisualBasic.Interaction.InputBox(
+                "Enter your name:", 
+                "Game Over", 
+                "Player",
+                -1, -1);
+                
+            if (!string.IsNullOrEmpty(playerName))
+            {
+                ScoreManager.AddScore(playerName, currentScore);
+            }
+
             MessageBox.Show($"Game Over! Final Score: {currentScore}", "Game Over",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
+                
+            using (var highScoreForm = new HighScoreForm())
+            {
+                highScoreForm.ShowDialog();
+            }
+            
             this.Close();
         }
 

@@ -10,6 +10,7 @@ namespace FormNavigation
         private Button selectCharacterButton;
         private Button difficultyButton;
         private Button exitButton;
+        private Button highScoreButton;
 
         public MainForm()
         {
@@ -35,7 +36,7 @@ namespace FormNavigation
             {
                 Text = "Start Game",
                 Size = new Size(buttonWidth, buttonHeight),
-                Location = new Point((this.ClientSize.Width - buttonWidth) / 2, (this.ClientSize.Height - buttonHeight * 4 - verticalSpacing * 3) / 2)
+                Location = new Point((this.ClientSize.Width - buttonWidth) / 2, (this.ClientSize.Height - buttonHeight * 5 - verticalSpacing * 4) / 2)
             };
             startGameButton.Click += StartGameButton_Click;
             this.Controls.Add(startGameButton);
@@ -60,12 +61,22 @@ namespace FormNavigation
             difficultyButton.Click += DifficultyButton_Click;
             this.Controls.Add(difficultyButton);
 
+            // Tombol High Score
+            highScoreButton = new Button
+            {
+                Text = "High Scores",
+                Size = new Size(buttonWidth, buttonHeight),
+                Location = new Point((this.ClientSize.Width - buttonWidth) / 2, difficultyButton.Bottom + verticalSpacing)
+            };
+            highScoreButton.Click += HighScoreButton_Click;
+            this.Controls.Add(highScoreButton);
+
             // Tombol Exit
             exitButton = new Button
             {
                 Text = "Exit",
                 Size = new Size(buttonWidth, buttonHeight),
-                Location = new Point((this.ClientSize.Width - buttonWidth) / 2, difficultyButton.Bottom + verticalSpacing)
+                Location = new Point((this.ClientSize.Width - buttonWidth) / 2, highScoreButton.Bottom + verticalSpacing)
             };
             exitButton.Click += ExitButton_Click;
             this.Controls.Add(exitButton);
@@ -89,6 +100,14 @@ namespace FormNavigation
         {
             DifficultyForm difficultyForm = new DifficultyForm();
             difficultyForm.ShowDialog();
+        }
+
+        private void HighScoreButton_Click(object sender, EventArgs e)
+        {
+            using (var highScoreForm = new HighScoreForm())
+            {
+                highScoreForm.ShowDialog();
+            }
         }
 
         private void ExitButton_Click(object sender, EventArgs e)
