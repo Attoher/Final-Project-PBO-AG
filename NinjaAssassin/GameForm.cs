@@ -71,11 +71,12 @@ namespace FormNavigation
         private Label scoreLabel;
         private int currentScore = 0;
         private (int maxEnemies, float spawnInterval, int enemyHealth, float enemySpeed) difficultySettings;
+        // Update konfigurasi frame di enemyConfigs
         private readonly Dictionary<string, (int width, int height, int idleFrames, int walkFrames, int attackFrames)> enemyConfigs = 
             new Dictionary<string, (int width, int height, int idleFrames, int walkFrames, int attackFrames)>
         {
-            {"Slime", (64, 64, 6, 6, 15)},
-            {"Bomb Puppet", (50, 50, 8, 8, 20)}
+            {"Slime", (64, 64, 6, 6, 15)},           // Tetap sama
+            {"Bomb Puppet", (50, 50, 4, 6, 20)}      // Ubah idle frames ke 4, walk frames ke 6
         };
 
         private int skillInterval;

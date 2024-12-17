@@ -131,59 +131,66 @@ namespace FormNavigation
             if (IsExploding)
             {
                 TimeSpan explosionTime = DateTime.Now - explosionStartTime;
-                // Only deactivate if explosion animation is complete AND damage has been dealt
                 if (explosionTime.TotalMilliseconds >= EXPLOSION_DURATION && HasExploded)
                 {
                     IsActive = false;
+                    return;
                 }
             }
 
-            if (CurrentState == "Attack")
-            {
-                // Increment frame counter
-                currentAttackFrame++;
-                
-                // For Bomb Puppet, handle explosion exactly at frame 20
-                if (Type == "Bomb Puppet")
-                {
-                    if (currentAttackFrame == explosionFrame && !IsExploding)
-                    {
-                        StartExplosion();
-                        AttackAnimation?.Start(); // Restart animation to ensure we see full explosion
-                    }
-                    // Keep playing animation until explosion is complete
-                    if (!HasExploded)
-                    {
-                        currentAttackFrame = Math.Min(currentAttackFrame, explosionFrame);
-                    }
-                }
-                else if (currentAttackFrame >= totalAttackFrames)
-                {
-                    CurrentState = "Idle";
-                    currentAttackFrame = 0;
-                }
-            }
-            else
-            {
-                currentAttackFrame = 0;
-            }
-
+            // Update animation state
             switch (CurrentState)
             {
                 case "Idle":
-                    IdleAnimation?.Start();
-                    WalkAnimation?.Stop();
-                    AttackAnimation?.Stop();
+                    // Only start idle if not already playing
+                    if (!IdleAnimation.IsPlaying)
+                    {
+                        WalkAnimation?.Stop();
+                        AttackAnimation?.Stop();
+                        IdleAnimation?.Start();
+                    }
                     break;
                 case "Walk":
-                    IdleAnimation?.Stop();
-                    WalkAnimation?.Start();
-                    AttackAnimation?.Stop();
+                    // Only start walk if not already playing
+                    if (!WalkAnimation.IsPlaying)
+                    {
+                        IdleAnimation?.Stop();
+                        AttackAnimation?.Stop();
+                        WalkAnimation?.Start();
+                    }
                     break;
                 case "Attack":
-                    IdleAnimation?.Stop();
-                    WalkAnimation?.Stop();
-                    AttackAnimation?.Start();
+                    // Only start attack if not already playing
+                    if (!AttackAnimation.IsPlaying)
+                    {
+                        IdleAnimation?.Stop();
+                        WalkAnimation?.Stop();
+                        AttackAnimation?.Start();
+                    }
+
+                    // Handle attack timing
+                    if (DateTime.Now - lastAttackTime > TimeSpan.FromMilliseconds(100))
+                    {
+                        currentAttackFrame++;
+                        lastAttackTime = DateTime.Now;
+                    
+                        if (Type == "Bomb Puppet")
+                        {
+                            if (currentAttackFrame == explosionFrame && !IsExploding)
+                            {
+                                StartExplosion();
+                            }
+                            if (!HasExploded)
+                            {
+                                currentAttackFrame = Math.Min(currentAttackFrame, explosionFrame);
+                            }
+                        }
+                        else if (currentAttackFrame >= totalAttackFrames)
+                        {
+                            CurrentState = "Idle";
+                            currentAttackFrame = 0;
+                        }
+                    }
                     break;
             }
         }

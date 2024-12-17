@@ -14,6 +14,8 @@ namespace FormNavigation
         private Timer animationTimer;
         private Rectangle sourceRect;
 
+        public bool IsPlaying { get; private set; } = false;
+
         public SpriteAnimation(Image spriteSheet, int frameWidth, int frameHeight, int totalFrames, int interval = 100)
         {
             this.spriteSheet = spriteSheet;
@@ -36,11 +38,14 @@ namespace FormNavigation
 
         public void Start()
         {
+            IsPlaying = true;
             animationTimer.Start();
         }
 
         public void Stop()
         {
+            IsPlaying = false;
+            currentFrame = 0;
             animationTimer.Stop();
         }
 
