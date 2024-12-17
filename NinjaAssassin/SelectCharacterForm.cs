@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.IO;
 using FormNavigation.Characters;
+using System.Drawing.Drawing2D;
 using System.Collections.Generic;
 
 namespace FormNavigation
@@ -64,8 +65,8 @@ namespace FormNavigation
             {
                 Size = new Size(200, 200),
                 Location = new Point(300, 100),
-                SizeMode = PictureBoxSizeMode.Zoom,
-                BorderStyle = BorderStyle.FixedSingle
+                SizeMode = PictureBoxSizeMode.StretchImage,
+                BackColor = Color.Transparent
             };
             this.Controls.Add(characterPreview);
 
@@ -126,20 +127,64 @@ namespace FormNavigation
         {
             try
             {
-                string imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, 
-                    CHARACTERS_PATH, $"{characters[index].Name}_Preview.png");
-                
+                string imagePath = Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    CHARACTERS_PATH,
+                    $"{characters[index].Name}_Idle.png");
+
                 if (File.Exists(imagePath))
                 {
-                    characterPreview.Image?.Dispose();
-                    characterPreview.Image = Image.FromFile(imagePath);
-                }
+                    using (var originalImage = Image.FromFile(imagePath))
+                    {
+                        int frameWidth = characters[index].SpriteWidth;
+                        int frameHeight = characters[index].SpriteHeight;
 
-                // Update description and stats
-                characterDescription.Text = characters[index].GetDescription();
-                statsLabel.Text = $"Health: {characters[index].MaxHealth}\n" +
-                                $"Attack: {characters[index].Attack}\n" +
-                                $"Speed: {characters[index].Speed}";
+                        // Create a new bitmap with the exact size we want
+                        var previewImage = new Bitmap(200, 200);
+                        using (var g = Graphics.FromImage(previewImage))
+                        {
+                            // Set up pixel-perfect rendering
+                            g.InterpolationMode = InterpolationMode.NearestNeighbor;
+                            g.PixelOffsetMode = PixelOffsetMode.Half;
+                            g.CompositingQuality = CompositingQuality.AssumeLinear;
+                            g.SmoothingMode = SmoothingMode.None;
+
+                            // Clear background
+                            g.Clear(Color.Transparent);
+
+                            // Calculate scale to fit in preview box while maintaining aspect ratio
+                            float scale = Math.Min(
+                                180f / frameWidth,  // Leave some padding
+                                180f / frameHeight
+                            );
+
+                            // Center the scaled image
+                            int destWidth = (int)(frameWidth * scale);
+                            int destHeight = (int)(frameHeight * scale);
+                            int destX = (200 - destWidth) / 2;
+                            int destY = (200 - destHeight) / 2;
+
+                            // Draw only the first frame scaled up
+                            g.DrawImage(originalImage,
+                                new Rectangle(destX, destY, destWidth, destHeight),
+                                new Rectangle(0, 0, frameWidth, frameHeight),
+                                GraphicsUnit.Pixel);
+                        }
+
+                        characterPreview.Image?.Dispose();
+                        characterPreview.Image = previewImage;
+                    }
+
+                    // Update character info
+                    characterDescription.Text = characters[index].GetDescription();
+                    statsLabel.Text = $"Health: {characters[index].MaxHealth}\n" +
+                                    $"Attack: {characters[index].Attack}\n" +
+                                    $"Speed: {characters[index].Speed}";
+                }
+                else
+                {
+                    MessageBox.Show($"Character sprite not found at: {imagePath}");
+                }
             }
             catch (Exception ex)
             {

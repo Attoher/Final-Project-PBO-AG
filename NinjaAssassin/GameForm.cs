@@ -106,13 +106,18 @@ namespace FormNavigation
 
         public GameForm()
         {
+            // Get difficulty settings first
             difficultySettings = GameState.GetDifficultySettings();
+            
+            // Initialize other components
             InitializePlayerStats();
             InitializeForm();
             InitializeControls();
             InitializeGame();
+            
+            // Setup event handlers
             this.MouseMove += GameForm_MouseMove;
-            currentMousePosition = Cursor.Position;  // Initialize mouse position
+            currentMousePosition = Cursor.Position;
             this.MouseDown += GameForm_MouseDown;
             this.MouseUp += GameForm_MouseUp;
         }
@@ -1176,7 +1181,7 @@ namespace FormNavigation
                     {
                         if (enemy.TakeDamage(BULLET_DAMAGE))
                         {
-                            // Enemy died, increase score
+                            // Enemy died, increase score based on enemy type
                             currentScore += enemy.Type == "Slime" ? 100 : 150;
                             scoreLabel.Text = $"Score: {currentScore}";
                             enemies.RemoveAt(j);
